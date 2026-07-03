@@ -1,0 +1,26 @@
+# Genç İHH Portalı Yapılacaklar Listesi
+
+- `[x]` 1. Proje Altyapısının Kurulması
+  - `[x]` `backend` klasörünün oluşturulması ve bağımlılıkların yüklenmesi
+  - `[x]` `frontend` klasörünün Vite + React ile oluşturulması ve bağımlılıkların yüklenmesi
+- `[x]` 2. Veritabanı (PostgreSQL & SQLite Hibrit)
+  - `[x]` `backend` bağımlılıklarına `pg` eklenmesi
+  - `[x]` Hem SQLite hem PostgreSQL destekleyen `database.js` yazılması
+  - `[x]` Veritabanı tablolarının otomatik oluşturulması ve başlangıç verilerinin eklenmesi (Süper Admin & Rutinler)
+- `[x]` 3. Arayüz Görselleri ve Tasarım Sistemi
+  - `[x]` `gencihh.jpeg` görselinin frontend ve backend varlıklarına kopyalanması
+  - `[x]` Olive-Green renk sistemi, toast bildirim stilleri ve dönen logo animasyon stillerinin `index.css` dosyasına entegre edilmesi
+  - `[x]` Özel alert bildirim sistemi için `NotificationContext.jsx` yazılması
+- `[x]` 4. Arka Yüz (Backend) API'lerinin Geliştirilmesi
+  - `[x]` Kimlik Doğrulama (Kayıt, E-posta Doğrulama/OTP, Giriş)
+  - `[x]` Süper Admin API'leri (Kullanıcı onay/birim atama, rutin oluşturma, tüm raporlar, denetim geçmişi)
+  - `[x]` Birim Başkanı API'leri (Kanıtlı etkinlik girişi, ekstra etkinlik ekleme, kendi istatistikleri)
+  - `[x]` İstatistik ve Raporlama API'leri (Dinamik SQL ile KPI hesabı, Haftalık/Aylık Liderlik Tablosu, Grafik verileri)
+  - `[x]` Arka Plan Görevleri (Cron Jobs: Pasiflik takibi, Ayın şampiyonu)
+- `[x]` 5. Ön Yüz (Frontend) Sayfalarının Entegrasyonu
+  - `[x]` Giriş, Kayıt ve E-posta Doğrulama sayfalarının güncellenmesi
+  - `[x]` Sayfa geçişleri ve yüklemeler için dönen logolu loading katmanının (`LoadingOverlay`) entegre edilmesi
+  - `[x]` Süper Admin Paneli (Onay bekleyenler, Birim atamaları, Grafiksel analizler, Rutin planlayıcı, Liderlik Tablosu)
+  - `[x]` Birim Başkanı Paneli (Etkinlik Giriş Formu, Fotoğraf Kanıt Yükleme, İstatistikler)
+- `[/]` 6. E2E Test ve Doğrulama
+  - `[ ]` Veritabanı bağlantısı ve E2E akışının doğrulanması
