@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // Etkinlik ekleme (Birim Başkanı)
 exports.createEvent = async (req, res) => {
-  const { type, routineId, title, description, eventDate } = req.body;
+  const { type, routineId, title, description, eventDate, targetId } = req.body;
   const user = req.user;
 
   if (!type || !title || !eventDate) {
@@ -13,6 +13,10 @@ exports.createEvent = async (req, res) => {
 
   if (type === 'ROUTINE' && !routineId) {
     return res.status(400).json({ message: 'Rutin etkinlikler için rutin seçimi zorunludur.' });
+  }
+  
+  if (type === 'TARGET' && !targetId) {
+    return res.status(400).json({ message: 'Aylık hedef etkinlikleri için hedef seçimi zorunludur.' });
   }
 
   // Tarih geçerlilik kontrolü
@@ -25,26 +29,15 @@ exports.createEvent = async (req, res) => {
     let pointsEarned = 0;
     
     if (type === 'EXTRA') {
-      // Ekstra Etkinlikler -> 150 Puan
-      pointsEarned = 150;
+      pointsEarned = 20;
     } else if (type === 'ROUTINE') {
-      // Rutin Etkinlik Puanlama Algoritması
-      // Zamanında: Etkinlik tarihi ile sisteme girildiği gün arasındaki fark 1 gün veya daha az ise -> 50 Puan
-      // Gecikmeli: Fark 2 gün veya daha fazla ise -> 25 Puan
-      
-      const today = new Date();
-      // Saatleri sıfırlayarak sadece gün farkını hesapla
-      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const eventDateOnly = new Date(parsedEventDate.getFullYear(), parsedEventDate.getMonth(), parsedEventDate.getDate());
-      
-      const diffTime = todayDateOnly - eventDateOnly;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays <= 1) {
-        pointsEarned = 50; // Zamanında girilen rutin
-      } else {
-        pointsEarned = 25; // Gecikmeli girilen rutin
+      pointsEarned = 10;
+    } else if (type === 'TARGET') {
+      const targetData = await query.get('SELECT targetPoints FROM targets WHERE id = ? AND unit = ?', [targetId, user.assignedUnit]);
+      if (!targetData) {
+        return res.status(400).json({ message: 'Geçersiz veya yetkiniz olmayan aylık hedef.' });
       }
+      pointsEarned = targetData.targetPoints;
     } else {
       return res.status(400).json({ message: 'Geçersiz etkinlik türü.' });
     }
@@ -54,13 +47,14 @@ exports.createEvent = async (req, res) => {
 
     // Etkinliği veritabanına kaydet
     const result = await query.run(
-      `INSERT INTO events (userId, unit, type, routineId, title, description, eventDate, proofImagePath, pointsEarned)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO events (userId, unit, type, routineId, targetId, title, description, eventDate, proofImagePath, pointsEarned)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         user.assignedUnit,
         type,
         type === 'ROUTINE' ? parseInt(routineId) : null,
+        type === 'TARGET' ? parseInt(targetId) : null,
         title,
         description || '',
         eventDate,

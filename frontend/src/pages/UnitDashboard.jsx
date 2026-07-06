@@ -16,7 +16,7 @@ const daysMap = {
 };
 
 export default function UnitDashboard() {
-  const { user, logout, theme, toggleTheme, fetchWithAuth, setLoadingScreen } = useAuth();
+  const { user, logout, theme, toggleTheme, fetchWithAuth, setLoadingScreen, triggerTransition } = useAuth();
   const { showNotification } = useNotification();
   
   // Veri Durumları
@@ -46,6 +46,8 @@ export default function UnitDashboard() {
   const [activeLeaderboardTab, setActiveLeaderboardTab] = useState('weekly');
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'profile'
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
+  const [missingRoutines, setMissingRoutines] = useState([]);
   const [profileForm, setProfileForm] = useState({
     phoneNumber: '',
     currentPassword: '',
@@ -64,6 +66,9 @@ export default function UnitDashboard() {
   useEffect(() => {
     if (user) {
       setProfileForm(prev => ({ ...prev, phoneNumber: user.phoneNumber || '' }));
+      if (user.assignedUnit === 'Tanıtım ve Medya Başkanı') {
+        setActiveTab('gallery');
+      }
       loadDashboardData();
     }
   }, [user]);
@@ -96,8 +101,49 @@ export default function UnitDashboard() {
         setStats(prev => ({ ...prev, rank: rank || '-' }));
       }
 
-      if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+      if (announcementsRes.ok) {
+        const ann = await announcementsRes.json();
+        setAnnouncements(ann);
+        // Okunmamış sayısını hesapla (localStorage'dan okunmuş ID'leri al)
+        const readIds = JSON.parse(localStorage.getItem('readAnnouncements') || '[]');
+        const unread = ann.filter(a => !readIds.includes(a.id));
+        setUnreadAnnouncementCount(unread.length);
+      }
       if (targetRes.ok) setTarget(await targetRes.json());
+
+      // Rutin hatırlatma: Bu haftanın rutin günleri ile karşılaştır
+      if (routinesRes.ok) {
+        const routines = await routinesRes.json();
+        setMyRoutines(routines);
+
+        if (eventsRes.ok) {
+          const today = new Date();
+          const startOfWeek = new Date(today);
+          const dayOfWeek = today.getDay();
+          const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+          startOfWeek.setDate(diff);
+          startOfWeek.setHours(0, 0, 0, 0);
+          const weekStart = startOfWeek.toISOString().split('T')[0];
+
+          // Haftalık mevcut etkinlikleri al (zaten eventsData yüklü)
+          const eventsDataForCheck = await (async () => {
+            const r = await fetchWithAuth('/events/my-events');
+            return r.ok ? r.json() : [];
+          })();
+
+          const missing = [];
+          for (const r of routines) {
+            const routineJsDay = r.dayOfWeek === 7 ? 0 : r.dayOfWeek;
+            const routineDayDate = new Date(startOfWeek);
+            routineDayDate.setDate(startOfWeek.getDate() + (routineJsDay === 0 ? 6 : routineJsDay - 1));
+            if (routineDayDate < today) {
+              const done = eventsDataForCheck.some(ev => ev.routineId === r.id && ev.eventDate >= weekStart);
+              if (!done) missing.push(r);
+            }
+          }
+          setMissingRoutines(missing);
+        }
+      }
 
       if (user?.assignedUnit === 'Tanıtım ve Medya Başkanı') {
         const allEventsRes = await fetchWithAuth('/events/all');
@@ -136,6 +182,10 @@ export default function UnitDashboard() {
       showNotification('Lütfen tamamladığınız rutin dersi seçin.', 'warning');
       return;
     }
+    if (type === 'TARGET' && (!target || !target.id)) {
+      showNotification('Bu ay için atanmış bir aylık hedefiniz bulunmuyor.', 'warning');
+      return;
+    }
     if (!title.trim()) {
       showNotification('Lütfen etkinlik başlığını girin.', 'warning');
       return;
@@ -155,6 +205,9 @@ export default function UnitDashboard() {
       formData.append('eventDate', eventDate);
       if (type === 'ROUTINE') {
         formData.append('routineId', routineId);
+      }
+      if (type === 'TARGET') {
+        formData.append('targetId', target.id);
       }
       formData.append('proofImage', proofImage);
 
@@ -335,15 +388,6 @@ export default function UnitDashboard() {
             </div>
           )}
 
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('profile'))} 
-            className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Hesabım"
-          >
-            <User size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Hesabım</span>}
-          </button>
 
           {user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && (
             <button 
@@ -357,15 +401,31 @@ export default function UnitDashboard() {
             </button>
           )}
 
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('dashboard'))} 
-            className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Ana Sayfa"
-          >
-            <Calendar size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Ana Sayfa</span>}
-          </button>
+          {user?.assignedUnit !== 'Tanıtım ve Medya Başkanı' && (
+            <button 
+              onClick={() => { triggerTransition(() => setActiveTab('dashboard')); 
+                // Duyuruları okunmuş işaretle
+                const ids = announcements.map(a => a.id);
+                localStorage.setItem('readAnnouncements', JSON.stringify(ids));
+                setUnreadAnnouncementCount(0);
+              }} 
+              className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', position: 'relative' }}
+              title="Ana Sayfa"
+            >
+              <Calendar size={18} />
+              {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Ana Sayfa</span>}
+              {unreadAnnouncementCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '6px', right: '8px',
+                  backgroundColor: '#ef4444', color: 'white',
+                  borderRadius: '50%', width: '18px', height: '18px',
+                  fontSize: '10px', fontWeight: 'bold',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>{unreadAnnouncementCount}</span>
+              )}
+            </button>
+          )}
 
           {/* Haftalık Rutinler Kartı */}
           {!isSidebarCollapsed && (
@@ -456,10 +516,10 @@ export default function UnitDashboard() {
         }}>
           <div style={{ textAlign: 'left' }}>
             <h1 style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-display)' }}>
-              {activeTab === 'dashboard' ? `${user?.assignedUnit} Paneli` : 'Hesabım'}
+              {activeTab === 'dashboard' ? `${user?.assignedUnit} Paneli` : activeTab === 'gallery' ? 'Etkinlik Medyası' : 'Hesabım'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-              {activeTab === 'dashboard' ? 'Etkinliklerinizi ve haftalık hedeflerinizi buradan takip edin.' : 'Hesap bilgilerinizi ve şifrenizi buradan güncelleyebilirsiniz.'}
+              {activeTab === 'dashboard' ? 'Etkinliklerinizi ve haftalık hedeflerinizi buradan takip edin.' : activeTab === 'gallery' ? 'Birimlerden gelen etkinlik medyalarını inceleyin.' : 'Hesap bilgilerinizi ve şifrenizi buradan güncelleyebilirsiniz.'}
             </p>
           </div>
 
@@ -476,6 +536,29 @@ export default function UnitDashboard() {
 
         {activeTab === 'dashboard' && (
           <>
+            {/* Eksik Rutin Uyarı Bannerı */}
+            {missingRoutines.length > 0 && (
+              <div style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                textAlign: 'left'
+              }}>
+                <span style={{ fontSize: '20px' }}>⚠️</span>
+                <div>
+                  <strong style={{ color: '#d97706', fontSize: '14px' }}>Bu hafta tamamlanmamış rutin göreviniz var!</strong>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {missingRoutines.map(r => r.title).join(', ')} — Gecikmeli de olsa kaydedebilirsiniz.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Duyurular ve Hedefler Banner Alanı */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               {/* Hedef Kartı */}
@@ -600,10 +683,38 @@ export default function UnitDashboard() {
                       className={`btn ${type === 'EXTRA' ? 'btn-primary' : 'btn-secondary'}`}
                       style={{ flex: 1, padding: '10px' }}
                     >
-                      Ekstra Faaliyet (+150 Puan)
+                      Ekstra Faaliyet (+20 Puan)
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setType('TARGET');
+                        setRoutineId('');
+                        setTitle(target ? target.targetName : '');
+                      }}
+                      className={`btn ${type === 'TARGET' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ flex: 1, padding: '10px' }}
+                    >
+                      Aylık Hedef Etkinliği
                     </button>
                   </div>
                 </div>
+
+                {/* Aylık Hedef Bilgisi */}
+                {type === 'TARGET' && (
+                  <div className="form-group">
+                    <label className="form-label">Bu Ayki Hedef Etkinlik</label>
+                    {(!target || !target.id) ? (
+                      <div style={{ fontSize: '13px', color: 'var(--status-danger)', padding: '10px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)' }}>
+                        Biriminiz için bu ay tanımlanmış bir hedef etkinlik bulunmamaktadır.
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '14px', color: 'var(--accent-primary)', padding: '10px', backgroundColor: 'rgba(91, 128, 54, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(91, 128, 54, 0.2)' }}>
+                        <strong>{target.targetName}</strong> (+{target.targetPoints} Puan)
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Rutin Seçim Dropdown */}
                 {type === 'ROUTINE' && (
@@ -634,10 +745,10 @@ export default function UnitDashboard() {
                   <input 
                     type="text"
                     required
-                    placeholder={type === 'ROUTINE' ? 'Rutin adı otomatik seçilir' : 'Örn: Okul Ziyareti, Piknik Buluşması vb.'}
+                    placeholder={type === 'ROUTINE' ? 'Rutin adı otomatik seçilir' : type === 'TARGET' ? 'Aylık hedef etkinliği adı otomatik seçilir' : 'Örn: Okul Ziyareti, Piknik Buluşması vb.'}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    disabled={type === 'ROUTINE'}
+                    disabled={type === 'ROUTINE' || type === 'TARGET'}
                     className="form-control"
                     style={{ width: '100%' }}
                   />
@@ -828,14 +939,28 @@ export default function UnitDashboard() {
                     <div style={{ fontWeight: '800', color: 'var(--accent-primary)', fontSize: '15px' }}>
                       +{event.pointsEarned} P
                     </div>
-                    {/* Silme Butonu (24 Saat Sınırı Backend Tarafından Kontrol Edilir) */}
-                    <button 
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="btn"
-                      style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-danger)' }}
-                    >
-                      İptal Et
-                    </button>
+                    {/* Silme Butonu - 24 saat kontrolü */}
+                    {(() => {
+                      const createdAt = new Date(event.createdAt);
+                      const diffHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+                      const canDelete = diffHours <= 24;
+                      return (
+                        <button 
+                          onClick={() => canDelete && handleDeleteEvent(event.id)}
+                          className="btn"
+                          title={canDelete ? 'Etkinliği iptal et' : '24 saat geçtiğinden silinemez'}
+                          style={{ 
+                            padding: '4px 8px', fontSize: '11px', 
+                            backgroundColor: canDelete ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148, 163, 184, 0.1)', 
+                            color: canDelete ? 'var(--status-danger)' : 'var(--text-muted)',
+                            cursor: canDelete ? 'pointer' : 'not-allowed',
+                            opacity: canDelete ? 1 : 0.5
+                          }}
+                        >
+                          {canDelete ? 'İptal Et' : 'Süre Doldu'}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -843,6 +968,13 @@ export default function UnitDashboard() {
           )}
         </div>
         </>
+        )}
+
+        {/* TAB: GALLERY (ETKİNLİK MEDYASI) */}
+        {activeTab === 'gallery' && (
+          <div className="card" style={{ padding: '20px', minHeight: '500px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
+            <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} />
+          </div>
         )}
 
         {/* TAB: PROFILE (HESABIM) */}
@@ -924,6 +1056,19 @@ export default function UnitDashboard() {
                 </button>
               </form>
             </div>
+
+            {/* KVKK Bilgi Kartı */}
+            <div className="card" style={{ padding: '25px', textAlign: 'left', borderLeft: '4px solid var(--accent-primary)' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🔒 Kişisel Veri Koruma (KVKK)
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+                Ad-soyad, e-posta ve telefon bilgileriniz ile etkinlik kanıt görselleriniz; Genç İHH Erzurum tarafından 
+                <strong> yalnızca teşkilat takip ve performans değerlendirme </strong> amacıyla işlenmektedir. 
+                Verileriniz üçüncü taraflarla paylaşılmaz ve şifreleriniz kriptolu olarak saklanır. 
+                6698 sayılı KVKK kapsamında veri silme veya düzeltme talepleriniz için birim yöneticinizle iletişime geçebilirsiniz.
+              </p>
+            </div>
           </div>
         )}
 
@@ -979,10 +1124,11 @@ export default function UnitDashboard() {
                       fontSize: '12px',
                       fontWeight: 'bold',
                       marginTop: '2px',
-                      backgroundColor: previewImage.type === 'ROUTINE' ? 'rgba(91, 128, 54, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                      color: previewImage.type === 'ROUTINE' ? 'var(--status-success)' : 'var(--status-warning)'
+                      backgroundColor: previewImage.type === 'ROUTINE' ? 'rgba(59, 130, 246, 0.1)' : previewImage.type === 'TARGET' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(91, 128, 54, 0.1)',
+                      color: previewImage.type === 'ROUTINE' ? '#3b82f6' : previewImage.type === 'TARGET' ? '#8b5cf6' : '#5b8036',
+                      fontWeight: '600'
                     }}>
-                      {previewImage.type === 'ROUTINE' ? 'Rutin Görev' : 'Ekstra Etkinlik'}
+                      {previewImage.type === 'ROUTINE' ? 'Rutin Görev' : previewImage.type === 'TARGET' ? 'Aylık Hedef' : 'Ekstra Etkinlik'}
                     </span>
                   </div>
                   <div>

@@ -35,7 +35,7 @@ export default function EventMediaGallery({ eventsGallery, setPreviewImage }) {
               value={gallerySearch}
               onChange={e => setGallerySearch(e.target.value)}
               className="form-control"
-              style={{ paddingLeft: '32px', fontSize: '13px', height: '36px' }}
+              style={{ paddingLeft: '32px', fontSize: '13px', height: '42px' }}
             />
           </div>
 
@@ -44,7 +44,7 @@ export default function EventMediaGallery({ eventsGallery, setPreviewImage }) {
             value={galleryTypeFilter}
             onChange={e => setGalleryTypeFilter(e.target.value)}
             className="form-control"
-            style={{ fontSize: '13px', height: '36px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
+            style={{ fontSize: '13px', height: '42px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
           >
             <option value="ALL">Tüm Türler</option>
             <option value="ROUTINE">Yalnızca Rutin</option>
@@ -56,7 +56,7 @@ export default function EventMediaGallery({ eventsGallery, setPreviewImage }) {
             value={galleryProofFilter}
             onChange={e => setGalleryProofFilter(e.target.value)}
             className="form-control"
-            style={{ fontSize: '13px', height: '36px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
+            style={{ fontSize: '13px', height: '42px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
           >
             <option value="ALL">Tüm Kayıtlar</option>
             <option value="WITH_PROOF">Fotoğraflı</option>

@@ -85,7 +85,7 @@ exports.getTargetForUnit = async (req, res) => {
       `SELECT * FROM targets WHERE unit = ? AND month = ?`,
       [unit, month]
     );
-    return res.status(200).json(target || { unit, month, routineTarget: 0, extraTarget: 0 });
+    return res.status(200).json(target || { unit, month, targetName: '', targetPoints: 0 });
   } catch (e) {
     console.error('Birim hedef alınırken hata:', e);
     return res.status(500).json({ message: 'Sunucu hatası.' });
@@ -93,7 +93,7 @@ exports.getTargetForUnit = async (req, res) => {
 };
 
 exports.setTarget = async (req, res) => {
-  const { unit, month, routineTarget, extraTarget } = req.body;
+  const { unit, month, targetName, targetPoints } = req.body;
   if (!unit || !month) return res.status(400).json({ message: 'Birim ve ay zorunludur.' });
 
   try {
@@ -101,14 +101,14 @@ exports.setTarget = async (req, res) => {
     const existing = await query.get('SELECT id FROM targets WHERE unit = ? AND month = ?', [unit, month]);
     if (existing) {
       await query.run(
-        'UPDATE targets SET routineTarget = ?, extraTarget = ? WHERE unit = ? AND month = ?',
-        [routineTarget || 0, extraTarget || 0, unit, month]
+        'UPDATE targets SET targetName = ?, targetPoints = ? WHERE unit = ? AND month = ?',
+        [targetName || '', targetPoints || 0, unit, month]
       );
     } else {
       const sql = require('../config/database').dbType === 'postgres'
-        ? `INSERT INTO targets (unit, month, routineTarget, extraTarget) VALUES (?, ?, ?, ?) RETURNING id`
-        : `INSERT INTO targets (unit, month, routineTarget, extraTarget) VALUES (?, ?, ?, ?)`;
-      await query.run(sql, [unit, month, routineTarget || 0, extraTarget || 0]);
+        ? `INSERT INTO targets (unit, month, targetName, targetPoints) VALUES (?, ?, ?, ?) RETURNING id`
+        : `INSERT INTO targets (unit, month, targetName, targetPoints) VALUES (?, ?, ?, ?)`;
+      await query.run(sql, [unit, month, targetName || '', targetPoints || 0]);
     }
     return res.status(200).json({ message: 'Hedef kaydedildi.' });
   } catch (e) {
@@ -173,6 +173,7 @@ exports.getUnitHistory = async (req, res) => {
 exports.transferUnit = async (req, res) => {
   const { oldUserId, newUserId, unit, reason } = req.body;
   if (!newUserId || !unit) return res.status(400).json({ message: 'Yeni kullanıcı ve birim zorunludur.' });
+  if (oldUserId && String(oldUserId) === String(newUserId)) return res.status(400).json({ message: 'Devreden ve devralan kişi aynı olamaz.' });
 
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -181,6 +182,9 @@ exports.transferUnit = async (req, res) => {
     if (oldUserId) {
       const oldUser = await query.get('SELECT * FROM users WHERE id = ?', [oldUserId]);
       if (oldUser) {
+        if (oldUser.assignedUnit !== unit) {
+          return res.status(400).json({ message: `Devreden kişi (${oldUser.fullName}) ${unit} başkanı değil!` });
+        }
         await query.run("UPDATE users SET role = 'PASSIVE', assignedUnit = NULL WHERE id = ?", [oldUserId]);
         // unit_history kaydını kapat
         await query.run(

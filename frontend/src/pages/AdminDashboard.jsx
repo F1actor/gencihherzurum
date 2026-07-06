@@ -3,13 +3,17 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { 
   Users, Award, CheckSquare, Bell, Calendar, LogOut, Moon, Sun, 
-  User, UserCheck, AlertTriangle, Shield, Check, Trash2, RefreshCw, BarChart2, TrendingUp, X, Download, Image as ImageIcon, Filter, Search, Settings 
+  User, UserCheck, AlertTriangle, Shield, Check, Trash2, RefreshCw, BarChart2, TrendingUp, X, Download, Image as ImageIcon, Filter, Search, Settings, Target 
 } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import logoImg from '../assets/logo.jpg';
-import SystemSettingsPanel from '../components/SystemSettingsPanel';
 import EventMediaGallery from '../components/EventMediaGallery';
+import SystemSettingsPanel from '../components/SystemSettingsPanel';
+import MonthlyGoalsPanel from '../components/MonthlyGoalsPanel';
+import AnnualReportPanel from '../components/AnnualReportPanel';
+import PerformancePanel from '../components/PerformancePanel';
+import MonthlyReportPanel from '../components/MonthlyReportPanel';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -41,7 +45,9 @@ const daysMap = {
 export default function AdminDashboard() {
   const { user, logout, theme, toggleTheme, fetchWithAuth, setLoadingScreen, triggerTransition } = useAuth();
   const { showNotification, showConfirm } = useNotification();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'performance', 'routines', 'audits'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'reports', 'tasks', etc.
+  const [activeReportTab, setActiveReportTab] = useState('performance'); // 'performance', 'monthly', 'annual'
+  const [activeTaskTab, setActiveTaskTab] = useState('routines'); // 'routines', 'targets'
 
   // Veri Durumları
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -226,6 +232,28 @@ export default function AdminDashboard() {
       showNotification('Rapor indirme hatası.', 'error');
     }
   };
+
+  // Genel Bakış PDF Çıktısı
+  const handleExportOverviewPDF = async () => {
+    const html2pdf = (await import('html2pdf.js')).default;
+    const element = document.getElementById('overview-stats-content');
+    if (!element) {
+      showNotification('PDF için içerik bulunamadı.', 'error');
+      return;
+    }
+    const opt = {
+      margin: 0.5,
+      filename: `GenelBakis_Rapor_${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 1200, width: 1200 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+    };
+    showNotification('PDF hazırlanıyor...', 'info');
+    html2pdf().set(opt).from(element).save().then(() => {
+      showNotification('Genel bakış raporu indirildi.', 'success');
+    });
+  };
+
 
   // Yeni Rutin Ekleme
   const handleCreateRoutine = async (e) => {
@@ -487,22 +515,22 @@ export default function AdminDashboard() {
             {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Birim Başkanları</span>}
           </button>
           <button 
-            onClick={() => triggerTransition(() => setActiveTab('performance'))} 
-            className={`btn ${activeTab === 'performance' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => triggerTransition(() => setActiveTab('reports'))} 
+            className={`btn ${activeTab === 'reports' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Performans Raporları"
+            title="Raporlar"
           >
             <BarChart2 size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Performans Raporları</span>}
+            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Raporlar</span>}
           </button>
           <button 
-            onClick={() => triggerTransition(() => setActiveTab('routines'))} 
-            className={`btn ${activeTab === 'routines' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => triggerTransition(() => setActiveTab('tasks'))} 
+            className={`btn ${activeTab === 'tasks' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Rutin Görev Takvimi"
+            title="Görevler"
           >
-            <Calendar size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Rutin Görev Takvimi</span>}
+            <CheckSquare size={18} />
+            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Görevler</span>}
           </button>
           <button 
             onClick={() => triggerTransition(() => setActiveTab('audits'))} 
@@ -597,10 +625,11 @@ export default function AdminDashboard() {
             <h1 style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-display)' }}>
               {activeTab === 'overview' && 'Yönetim Paneli'}
               {activeTab === 'presidents' && 'Birim Başkanları Listesi'}
-              {activeTab === 'performance' && 'Birim Başarı ve KPI Raporları'}
-              {activeTab === 'routines' && 'Rutin Görev Takvimi Yönetimi'}
+              {activeTab === 'reports' && 'Raporlar ve Liderlik'}
+              {activeTab === 'tasks' && 'Görevler ve Hedefler'}
               {activeTab === 'audits' && 'Sistem Denetimi ve Pasiflik Uyarıları'}
               {activeTab === 'gallery' && 'Etkinlik Medyası'}
+              {activeTab === 'system' && 'Sistem Ayarları ve Duyurular'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
               Sistem verileri gerçek zamanlı olarak sunulmaktadır.
@@ -629,6 +658,17 @@ export default function AdminDashboard() {
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Özet Rapor İndir Butonu */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleExportOverviewPDF}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', borderColor: '#ef4444' }}
+              >
+                <Download size={16} /> Özet Rapor PDF
+              </button>
+            </div>
+            <div id="overview-stats-content" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Stats Cards */}
             <div style={{
               display: 'grid',
@@ -850,6 +890,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+            </div>{/* end overview-stats-content */}
           </div>
         )}
 
@@ -898,10 +939,16 @@ export default function AdminDashboard() {
                               borderRadius: '4px',
                               fontSize: '11px',
                               fontWeight: 'bold',
-                              backgroundColor: u.role === 'SUPER_ADMIN' ? 'rgba(91, 128, 54, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                              color: u.role === 'SUPER_ADMIN' ? '#5b8036' : '#3b82f6'
+                              backgroundColor: u.role === 'SUPER_ADMIN' ? 'rgba(91, 128, 54, 0.1)' : 
+                                               u.role === 'PASSIVE' ? 'rgba(239, 68, 68, 0.1)' :
+                                               u.role === 'PENDING' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                              color: u.role === 'SUPER_ADMIN' ? '#5b8036' : 
+                                     u.role === 'PASSIVE' ? '#ef4444' :
+                                     u.role === 'PENDING' ? '#f59e0b' : '#3b82f6'
                             }}>
-                              {u.role === 'SUPER_ADMIN' ? 'Süper Admin' : 'Birim Başkanı'}
+                              {u.role === 'SUPER_ADMIN' ? 'Süper Admin' : 
+                               u.role === 'PASSIVE' ? 'Pasif (Eski Bşk.)' :
+                               u.role === 'PENDING' ? 'Onay Bekliyor' : 'Birim Başkanı'}
                             </span>
                           </td>
                           <td style={{ padding: '12px', fontWeight: '600' }}>
@@ -942,210 +989,205 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 2: PERFORMANCE REPORT (KPIs) */}
-        {activeTab === 'performance' && (
+        {/* TAB 2: RAPORLAR (Performans, Aylık, Yıllık) */}
+        {activeTab === 'reports' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '800' }}>Performans ve Liderlik Raporları</h2>
-              <button onClick={handleExportCSV} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Download size={18} /> Tüm Etkinlikleri CSV İndir
-              </button>
+            <div style={{ display: 'flex', gap: '5px', backgroundColor: 'var(--bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-sm)' }}>
+              <button 
+                onClick={() => setActiveReportTab('performance')} 
+                className="btn" 
+                style={{
+                  flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold',
+                  backgroundColor: activeReportTab === 'performance' ? 'var(--bg-secondary)' : 'transparent',
+                  color: activeReportTab === 'performance' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeReportTab === 'performance' ? 'var(--shadow-sm)' : 'none'
+                }}
+              >Performans Raporları</button>
+              <button 
+                onClick={() => setActiveReportTab('monthly')} 
+                className="btn" 
+                style={{
+                  flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold',
+                  backgroundColor: activeReportTab === 'monthly' ? 'var(--bg-secondary)' : 'transparent',
+                  color: activeReportTab === 'monthly' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeReportTab === 'monthly' ? 'var(--shadow-sm)' : 'none'
+                }}
+              >Aylık Raporlar</button>
+              <button 
+                onClick={() => setActiveReportTab('annual')} 
+                className="btn" 
+                style={{
+                  flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold',
+                  backgroundColor: activeReportTab === 'annual' ? 'var(--bg-secondary)' : 'transparent',
+                  color: activeReportTab === 'annual' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeReportTab === 'annual' ? 'var(--shadow-sm)' : 'none'
+                }}
+              >Yıllık Raporlar</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              {/* KPI Description */}
-              <div className="card" style={{ textAlign: 'left' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Award size={20} /> Performans Metrikleri Nasıl Hesaplanır?
-                </h3>
-                <ul style={{ paddingLeft: '20px', fontSize: '14px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <li><strong>Rutin Başarı Oranı (%):</strong> Birimin son 30 gün içinde yapması planlanan (takvimdeki rutin günlerine göre hesaplanan) toplam rutin derslerin, kanıt girilerek tamamlanan derslere oranıdır.</li>
-                  <li><strong>Ekstra Efor Skoru:</strong> Birimlerin rutin dışı yaptıkları her ekstra faaliyet (kamp, ziyaret vb.) için aldıkları toplam ekstra puanlardır. Teşkilatın hareket kabiliyetini gösterir.</li>
-                  <li><strong>Zamanlama Algoritması:</strong> Rutin etkinlik gününde veya bir gün sonrasında girilirse <strong>50 Puan</strong>, daha geç girilirse <strong>25 Puan</strong> kazandırır.</li>
-                </ul>
-              </div>
+            {activeReportTab === 'performance' && (
+              <PerformancePanel 
+                performance={performance}
+                theme={theme}
+                getUnitPresidentName={getUnitPresidentName}
+                prepareSuccessRateChartData={prepareSuccessRateChartData}
+                handleExportCSV={handleExportCSV}
+              />
+            )}
+            
+            {activeReportTab === 'monthly' && (
+              <MonthlyReportPanel 
+                theme={theme}
+                getUnitPresidentName={getUnitPresidentName}
+              />
+            )}
 
-              {/* KPI Graph Chart */}
-              <div className="card" style={{ textAlign: 'left' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <TrendingUp size={20} /> Birimlerin Rutin Görev Başarı Oranları (%)
-                </h3>
-                <div style={{ height: '180px', position: 'relative' }}>
-                  {performance.length > 0 ? (
-                    <Bar 
-                      data={prepareSuccessRateChartData()} 
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                          y: { min: 0, max: 100, ticks: { color: theme === 'dark' ? '#64748b' : '#94a3b8' }, grid: { color: theme === 'dark' ? '#1f2937' : '#e2e8f0' } },
-                          x: { ticks: { color: theme === 'dark' ? '#64748b' : '#94a3b8' }, grid: { display: false } }
-                        }
-                      }}
-                    />
+            {activeReportTab === 'annual' && (
+              <AnnualReportPanel />
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: GÖREVLER (Rutin Görevler, Aylık Görevler) */}
+        {activeTab === 'tasks' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ display: 'flex', gap: '5px', backgroundColor: 'var(--bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-sm)' }}>
+              <button 
+                onClick={() => setActiveTaskTab('routines')} 
+                className="btn" 
+                style={{
+                  flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold',
+                  backgroundColor: activeTaskTab === 'routines' ? 'var(--bg-secondary)' : 'transparent',
+                  color: activeTaskTab === 'routines' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeTaskTab === 'routines' ? 'var(--shadow-sm)' : 'none'
+                }}
+              >Rutin Görevler</button>
+              <button 
+                onClick={() => setActiveTaskTab('targets')} 
+                className="btn" 
+                style={{
+                  flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold',
+                  backgroundColor: activeTaskTab === 'targets' ? 'var(--bg-secondary)' : 'transparent',
+                  color: activeTaskTab === 'targets' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeTaskTab === 'targets' ? 'var(--shadow-sm)' : 'none'
+                }}
+              >Aylık Görevler</button>
+            </div>
+
+            {activeTaskTab === 'routines' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2.5rem' }}>
+                {/* Add New Routine Card */}
+                <div className="card" style={{ textAlign: 'left', height: 'fit-content' }}>
+                  <h3 style={{ fontSize: '18px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Calendar size={20} /> Yeni Rutin Görev Ekle
+                  </h3>
+
+                  <form onSubmit={handleCreateRoutine}>
+                    <div className="form-group">
+                      <label className="form-label">Sorumlu Birim</label>
+                      <select 
+                        value={newRoutine.unit}
+                        onChange={(e) => setNewRoutine({ ...newRoutine, unit: e.target.value })}
+                        className="form-control"
+                        style={{ width: '100%' }}
+                      >
+                        {validUnits.map(unit => (
+                          <option key={unit} value={unit}>{unit}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Ders/Görev Başlığı</label>
+                      <input 
+                        type="text"
+                        required
+                        placeholder="Örn: Haftalık Tefsir Dersi"
+                        value={newRoutine.title}
+                        onChange={(e) => setNewRoutine({ ...newRoutine, title: e.target.value })}
+                        className="form-control"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '20px' }}>
+                      <label className="form-label">Görev Günü</label>
+                      <select 
+                        value={newRoutine.dayOfWeek}
+                        onChange={(e) => setNewRoutine({ ...newRoutine, dayOfWeek: e.target.value })}
+                        className="form-control"
+                        style={{ width: '100%' }}
+                      >
+                        <option value="1">Pazartesi</option>
+                        <option value="2">Salı</option>
+                        <option value="3">Çarşamba</option>
+                        <option value="4">Perşembe</option>
+                        <option value="5">Cuma</option>
+                        <option value="6">Cumartesi</option>
+                        <option value="7">Pazar</option>
+                      </select>
+                    </div>
+
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                      Rutin Planı Ekle
+                    </button>
+                  </form>
+                </div>
+
+                {/* Routines List Table */}
+                <div className="card" style={{ textAlign: 'left' }}>
+                  <h3 style={{ fontSize: '18px', marginBottom: '1.5rem' }}>Sistemdeki Rutin Görev Planları</h3>
+
+                  {routines.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sistemde kayıtlı rutin görev bulunamadı.</p>
                   ) : (
-                    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                      Yükleniyor...
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Birim</th>
+                            <th style={{ padding: '10px', textAlign: 'left' }}>Görev Başlığı</th>
+                            <th style={{ padding: '10px', textAlign: 'center' }}>Plan Günü</th>
+                            <th style={{ padding: '10px', textAlign: 'right' }}>İşlem</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {routines.map(r => (
+                            <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '12px 10px', fontWeight: '700' }}>
+                                {r.unit}{getUnitPresidentName(r.unit)}
+                              </td>
+                              <td style={{ padding: '12px 10px' }}>{r.title}</td>
+                              <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)', fontSize: '12px', fontWeight: '600'
+                                }}>
+                                  {daysMap[r.dayOfWeek]}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                                <button 
+                                  onClick={() => handleDeleteRoutine(r.id)}
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '6px', color: 'var(--status-danger)', border: 'none', background: 'transparent' }}
+                                  title="Sil"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Performance KPI Table */}
-            <div className="card" style={{ textAlign: 'left' }}>
-              <h3 style={{ fontSize: '18px', marginBottom: '1.5rem' }}>Birim Performans Detayları (Son 30 Gün)</h3>
-              
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: '12px 10px', textAlign: 'left' }}>Birim Başkanlığı</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Planlanan Rutin</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Tamamlanan Rutin</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Rutin Başarı Oranı</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Ekstra Efor Skoru</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center' }}>Toplam Etkinlik</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {performance.map(p => (
-                      <tr key={p.unit} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '14px 10px', fontWeight: '700' }}>{p.unit}{getUnitPresidentName(p.unit)}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>{p.routinesPlanned}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>{p.routinesCompleted}</td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center' }}>
-                          <span style={{
-                            padding: '4px 10px', borderRadius: 'var(--radius-full)', fontWeight: 'bold', fontSize: '12px',
-                            backgroundColor: p.routineSuccessRate >= 80 ? 'rgba(91, 128, 54, 0.1)' : p.routineSuccessRate >= 50 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                            color: p.routineSuccessRate >= 80 ? 'var(--status-success)' : p.routineSuccessRate >= 50 ? 'var(--status-warning)' : 'var(--status-danger)',
-                          }}>
-                            %{p.routineSuccessRate}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', fontWeight: 'bold', color: 'var(--accent-primary)' }}>
-                          +{p.extraEffortScore} P
-                        </td>
-                        <td style={{ padding: '14px 10px', textAlign: 'center', fontWeight: '600' }}>{p.totalEvents}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: ROUTINES (RUTİN GÖREV TAKVİMİ) */}
-        {activeTab === 'routines' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2.5rem' }}>
-            {/* Add New Routine Card */}
-            <div className="card" style={{ textAlign: 'left', height: 'fit-content' }}>
-              <h3 style={{ fontSize: '18px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Calendar size={20} /> Yeni Rutin Görev Ekle
-              </h3>
-
-              <form onSubmit={handleCreateRoutine}>
-                <div className="form-group">
-                  <label className="form-label">Sorumlu Birim</label>
-                  <select 
-                    value={newRoutine.unit}
-                    onChange={(e) => setNewRoutine({ ...newRoutine, unit: e.target.value })}
-                    className="form-control"
-                    style={{ width: '100%' }}
-                  >
-                    {validUnits.map(unit => (
-                      <option key={unit} value={unit}>{unit}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ders/Görev Başlığı</label>
-                  <input 
-                    type="text"
-                    required
-                    placeholder="Örn: Haftalık Tefsir Dersi"
-                    value={newRoutine.title}
-                    onChange={(e) => setNewRoutine({ ...newRoutine, title: e.target.value })}
-                    className="form-control"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label className="form-label">Görev Günü</label>
-                  <select 
-                    value={newRoutine.dayOfWeek}
-                    onChange={(e) => setNewRoutine({ ...newRoutine, dayOfWeek: e.target.value })}
-                    className="form-control"
-                    style={{ width: '100%' }}
-                  >
-                    <option value="1">Pazartesi</option>
-                    <option value="2">Salı</option>
-                    <option value="3">Çarşamba</option>
-                    <option value="4">Perşembe</option>
-                    <option value="5">Cuma</option>
-                    <option value="6">Cumartesi</option>
-                    <option value="7">Pazar</option>
-                  </select>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  Rutin Planı Ekle
-                </button>
-              </form>
-            </div>
-
-            {/* Routines List Table */}
-            <div className="card" style={{ textAlign: 'left' }}>
-              <h3 style={{ fontSize: '18px', marginBottom: '1.5rem' }}>Sistemdeki Rutin Görev Planları</h3>
-
-              {routines.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sistemde kayıtlı rutin görev bulunamadı.</p>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>Birim</th>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>Görev Başlığı</th>
-                        <th style={{ padding: '10px', textAlign: 'center' }}>Plan Günü</th>
-                        <th style={{ padding: '10px', textAlign: 'right' }}>İşlem</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {routines.map(r => (
-                        <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '12px 10px', fontWeight: '700' }}>
-                            {r.unit}{getUnitPresidentName(r.unit)}
-                          </td>
-                          <td style={{ padding: '12px 10px' }}>{r.title}</td>
-                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-tertiary)', fontSize: '12px', fontWeight: '600'
-                            }}>
-                              {daysMap[r.dayOfWeek]}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 10px', textAlign: 'right' }}>
-                            <button 
-                              onClick={() => handleDeleteRoutine(r.id)}
-                              className="btn btn-secondary" 
-                              style={{ padding: '6px', color: 'var(--status-danger)', border: 'none', background: 'transparent' }}
-                              title="Sil"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            {activeTaskTab === 'targets' && (
+              <MonthlyGoalsPanel validUnits={validUnits} />
+            )}
           </div>
         )}
 
@@ -1205,14 +1247,18 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB: SİSTEM YÖNETİMİ */}
+        {/* MIGRATED TO TASKS TAB */}
+
+        {/* TAB 9: SYSTEM */}
         {activeTab === 'system' && (
           <SystemSettingsPanel validUnits={validUnits} loadDashboardData={loadDashboardData} />
         )}
 
-        {/* TAB: ETKİNLİK MEDYASI */}
+        {/* TAB 10: GALLERY */}
         {activeTab === 'gallery' && (
-          <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} />
+          <div className="card" style={{ padding: '20px', minHeight: '500px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
+            <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} />
+          </div>
         )}
 
         {/* TAB: PROFILE (HESABIM) */}
@@ -1296,6 +1342,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* MIGRATED TO REPORTS TAB */}
       </main>
 
       {/* Image Lightbox Modal */}

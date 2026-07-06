@@ -159,18 +159,18 @@ exports.getPerformanceMetrics = async (req, res) => {
            WHERE unit = ? AND type = 'ROUTINE' AND routineId = ? AND eventDate >= ? AND eventDate <= ?`,
           [unit, r.id, startDate, endDate]
         );
-        totalCompletedRoutines += completed.count || 0;
+        totalCompletedRoutines += parseInt(completed.count, 10) || 0;
       }
 
       // Rutin Başarı Oranı % hesapla
       const successRate = totalPlannedRoutines > 0 
-        ? Math.round((totalCompletedRoutines / totalPlannedRoutines) * 100)
+        ? Math.min(100, Math.round((totalCompletedRoutines / totalPlannedRoutines) * 100))
         : 0;
 
-      // 2. Ekstra Efor Skoru (Ekstra etkinliklerin puan toplamı)
+      // 2. Ekstra Efor Skoru (Ekstra ve Aylık Hedef etkinliklerinin puan toplamı)
       const extraScoreObj = await query.get(
         `SELECT SUM(pointsEarned) as sumPoints FROM events 
-         WHERE unit = ? AND type = 'EXTRA' AND eventDate >= ? AND eventDate <= ?`,
+         WHERE unit = ? AND type IN ('EXTRA', 'TARGET') AND eventDate >= ? AND eventDate <= ?`,
         [unit, startDate, endDate]
       );
       const extraEffortScore = extraScoreObj.sumPoints || 0;
@@ -186,7 +186,7 @@ exports.getPerformanceMetrics = async (req, res) => {
         period: 'Son 30 Gün',
         routinesPlanned: totalPlannedRoutines,
         routinesCompleted: totalCompletedRoutines,
-        routineSuccessRate: successRate, // % Değer
+        routineSuccessRate: successRate, // % Değer (Maks 100)
         extraEffortScore, // Ekstra etkinlik puanları
         totalEventsCount: totalEvents.count || 0
       });
@@ -223,7 +223,7 @@ exports.getAdminDashboardStats = async (req, res) => {
        ORDER BY e.id DESC LIMIT 5`
     );
 
-    // 5. Grafikler için son 4 haftanın puan gelişim trendi
+    // 5. Grafikler için son 4 haftanın etkinlik trendi
     const weeksData = [];
     const today = new Date();
     
@@ -233,7 +233,7 @@ exports.getAdminDashboardStats = async (req, res) => {
       const { monday, sunday } = getStartAndEndOfWeek(targetDay);
       
       const weeklySum = await query.all(
-        `SELECT unit, SUM(pointsEarned) as points 
+        `SELECT unit, COUNT(id) as points 
          FROM events 
          WHERE eventDate >= ? AND eventDate <= ? 
          GROUP BY unit`,
@@ -298,11 +298,214 @@ exports.exportToCSV = async (req, res) => {
 
     const csvData = lines.join('\n');
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="gencihh_rapor_${formatLocalDate(today)}.csv"`);
+    res.setHeader('Content-Disposition', 'attachment; filename="etkinlikler.csv"');
     return res.status(200).send(csvData);
   } catch (error) {
-    console.error('CSV dışa aktarma hatası:', error);
+    console.error('CSV export hatası:', error);
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
 
+// ============================================================
+// AYLIK RAPOR (MONTHLY REPORT)
+// ============================================================
+exports.getMonthlyReport = async (req, res) => {
+  try {
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({ message: 'Yıl ve ay parametreleri zorunludur.' });
+    }
+
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10); // 1-12
+
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+      return res.status(400).json({ message: 'Geçersiz yıl veya ay değeri.' });
+    }
+
+    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const endDate = `${y}-${String(m).padStart(2, '0')}-${lastDay}`;
+
+    const monthLabel = new Date(y, m - 1, 1).toLocaleString('tr-TR', { month: 'long', year: 'numeric' });
+
+    const routinesList = await query.all('SELECT * FROM routines');
+    const unitStats = [];
+
+    for (const u of competitiveUnits) {
+      const unitRoutines = routinesList.filter(r => r.unit === u);
+      let totalPlannedRoutines = 0;
+      let totalCompletedRoutines = 0;
+
+      for (const r of unitRoutines) {
+        const plannedCount = countDayOfWeekInPeriod(startDate, endDate, r.dayOfWeek);
+        totalPlannedRoutines += plannedCount;
+
+        const completedObj = await query.get(
+          `SELECT COUNT(id) as count FROM events WHERE unit = ? AND type = 'ROUTINE' AND routineId = ? AND eventDate >= ? AND eventDate <= ?`,
+          [u, r.id, startDate, endDate]
+        );
+        totalCompletedRoutines += parseInt(completedObj.count, 10) || 0;
+      }
+
+      const successRate = totalPlannedRoutines > 0
+        ? Math.min(100, Math.round((totalCompletedRoutines / totalPlannedRoutines) * 100))
+        : 0;
+
+      const extrasObj = await query.get(
+        `SELECT COUNT(id) as count, SUM(pointsEarned) as totalPoints FROM events WHERE unit = ? AND type = 'EXTRA' AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+      const targetsObj = await query.get(
+        `SELECT COUNT(id) as count FROM events WHERE unit = ? AND type = 'TARGET' AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+      const totalPointsObj = await query.get(
+        `SELECT SUM(pointsEarned) as total FROM events WHERE unit = ? AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+      const totalEventsObj = await query.get(
+        `SELECT COUNT(id) as count FROM events WHERE unit = ? AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+
+      unitStats.push({
+        unit: u,
+        routinesPlanned: totalPlannedRoutines,
+        routinesCompleted: totalCompletedRoutines,
+        routineSuccessRate: successRate,
+        extrasCompleted: parseInt(extrasObj.count, 10) || 0,
+        extraEffortScore: parseInt(extrasObj.totalPoints, 10) || 0,
+        targetsCompleted: parseInt(targetsObj.count, 10) || 0,
+        totalPoints: parseInt(totalPointsObj.total, 10) || 0,
+        totalEventsCount: parseInt(totalEventsObj.count, 10) || 0
+      });
+    }
+
+    unitStats.sort((a, b) => b.routineSuccessRate - a.routineSuccessRate);
+
+    return res.status(200).json({
+      monthLabel,
+      startDate,
+      endDate,
+      unitStats
+    });
+
+  } catch (error) {
+    console.error('Aylık rapor hatası:', error);
+    return res.status(500).json({ message: 'Sunucu hatası.' });
+  }
+};
+
+// ============================================================
+// YILLIK RAPOR (ANNUAL REPORT)
+// ============================================================
+exports.getAnnualReport = async (req, res) => {
+  try {
+    const { unit } = req.query;
+    const targetUnit = unit && unit !== 'Tüm Sistem' ? unit : null;
+
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    const startDate = oneYearAgo.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
+
+    // 1. Aylık Trend (Line Chart Data)
+    const monthsData = [];
+    const monthNames = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const mName = d.toLocaleString('tr-TR', { month: 'short', year: 'numeric' });
+      monthNames.push(mName);
+
+      const dStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+      const dEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+      
+      let queryStr = `SELECT SUM(pointsEarned) as total FROM events WHERE eventDate >= ? AND eventDate <= ?`;
+      let queryParams = [dStart, dEnd];
+
+      if (targetUnit) {
+        queryStr += ` AND unit = ?`;
+        queryParams.push(targetUnit);
+      }
+
+      const mPoints = await query.get(queryStr, queryParams);
+      monthsData.push(mPoints.total || 0);
+    }
+
+    // 2. Birim Bazlı İstatistikler
+    const validUnits = [
+      'Tüm Sistem',
+      'İl Başkanı',
+      'Teşkilatlanma Başkanı',
+      'Eğitim Başkanı',
+      'Üniversite Başkanı',
+      'Lise Başkanı',
+      'Ortaokul Başkanı',
+      'İHH Çocuk Başkanı',
+      'Tanıtım ve Medya Başkanı',
+      'Çalışan Gençlik Başkanı',
+      'Sosyal Faaliyet Başkanı',
+      'Proje - Fon Başkanı',
+      'Atom Başkanı'
+    ];
+
+    if (targetUnit && validUnits.includes(targetUnit)) {
+      validUnits = [targetUnit];
+    }
+
+    const unitStats = [];
+    const routinesList = await query.all("SELECT * FROM routines");
+
+    for (const u of validUnits) {
+      const unitRoutines = routinesList.filter(r => r.unit === u);
+      let totalPlannedRoutines = 0;
+      let totalCompletedRoutines = 0;
+
+      for (const r of unitRoutines) {
+        const plannedCount = countDayOfWeekInPeriod(startDate, endDate, r.dayOfWeek);
+        totalPlannedRoutines += plannedCount;
+
+        const completedObj = await query.get(
+          `SELECT COUNT(id) as count FROM events WHERE unit = ? AND type = 'ROUTINE' AND routineId = ? AND eventDate >= ? AND eventDate <= ?`,
+          [u, r.id, startDate, endDate]
+        );
+        totalCompletedRoutines += parseInt(completedObj.count, 10) || 0;
+      }
+
+      const extrasObj = await query.get(
+        `SELECT COUNT(id) as count FROM events WHERE unit = ? AND type = 'EXTRA' AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+      const targetsObj = await query.get(
+        `SELECT COUNT(id) as count FROM events WHERE unit = ? AND type = 'TARGET' AND eventDate >= ? AND eventDate <= ?`,
+        [u, startDate, endDate]
+      );
+
+      unitStats.push({
+        unit: u,
+        routinesPlanned: totalPlannedRoutines,
+        routinesCompleted: totalCompletedRoutines,
+        extrasCompleted: parseInt(extrasObj.count, 10) || 0,
+        targetsCompleted: parseInt(targetsObj.count, 10) || 0
+      });
+    }
+
+    unitStats.sort((a, b) => (b.routinesCompleted + b.extrasCompleted + b.targetsCompleted) - (a.routinesCompleted + a.extrasCompleted + a.targetsCompleted));
+
+    return res.status(200).json({
+      lineChartData: {
+        labels: monthNames,
+        data: monthsData
+      },
+      unitStats
+    });
+
+  } catch (error) {
+    console.error('Yıllık rapor çekilirken hata:', error);
+    return res.status(500).json({ message: 'Sunucu hatası.' });
+  }
+};

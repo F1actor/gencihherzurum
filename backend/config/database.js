@@ -81,6 +81,9 @@ function normalizeRow(row) {
     else if (key === 'extratarget') newKey = 'extraTarget';
     else if (key === 'presidentemail') newKey = 'presidentEmail';
     else if (key === 'routinetitle') newKey = 'routineTitle';
+    else if (key === 'targetname') newKey = 'targetName';
+    else if (key === 'targetpoints') newKey = 'targetPoints';
+    else if (key === 'targetid') newKey = 'targetId';
     
     newRow[newKey] = row[key];
   }
@@ -285,8 +288,25 @@ async function initDatabase() {
       }
     } catch (e) { /* ignore if exists */ }
 
+    // Migration: targets tablosuna targetName ve targetPoints ekle
+    try {
+      if (dbType === 'postgres') {
+        await query.run('ALTER TABLE targets ADD COLUMN IF NOT EXISTS targetName TEXT');
+        await query.run('ALTER TABLE targets ADD COLUMN IF NOT EXISTS targetPoints INTEGER DEFAULT 0');
+      } else {
+        await query.run('ALTER TABLE targets ADD COLUMN targetName TEXT');
+        await query.run('ALTER TABLE targets ADD COLUMN targetPoints INTEGER DEFAULT 0');
+      }
+    } catch (e) { /* ignore if exists */ }
 
-
+    // Migration: events tablosuna targetId ekle
+    try {
+      if (dbType === 'postgres') {
+        await query.run('ALTER TABLE events ADD COLUMN IF NOT EXISTS targetId INTEGER');
+      } else {
+        await query.run('ALTER TABLE events ADD COLUMN targetId INTEGER');
+      }
+    } catch (e) { /* ignore if exists */ }
     // --- SEEDING ---
     const adminExists = await query.get("SELECT * FROM users WHERE role = 'SUPER_ADMIN'");
     if (!adminExists) {

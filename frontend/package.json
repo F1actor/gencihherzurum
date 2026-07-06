@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "chart.js": "^4.5.1",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

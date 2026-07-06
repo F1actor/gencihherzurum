@@ -12,5 +12,7 @@ router.get('/performance', reportController.getPerformanceMetrics);
 // Süper Admin dashboard istatistikleri sadece Süper Admin yetkisine açıktır
 router.get('/dashboard-stats', requireRole('SUPER_ADMIN'), reportController.getAdminDashboardStats);
 router.get('/export-csv', requireRole('SUPER_ADMIN'), reportController.exportToCSV);
+router.get('/monthly-report', requireRole('SUPER_ADMIN'), reportController.getMonthlyReport);
+router.get('/annual-report', requireRole('SUPER_ADMIN'), reportController.getAnnualReport);
 
 module.exports = router;

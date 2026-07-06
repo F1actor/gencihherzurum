@@ -11,13 +11,11 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
   
   // Data states
   const [announcements, setAnnouncements] = useState([]);
-  const [targets, setTargets] = useState([]);
   const [champions, setChampions] = useState([]);
   const [unitHistory, setUnitHistory] = useState([]);
   
   // Form states
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '', targetUnit: '' });
-  const [newTarget, setNewTarget] = useState({ unit: '', month: new Date().toISOString().slice(0, 7), routineTarget: 0, extraTarget: 0 });
   const [newChampion, setNewChampion] = useState({ month: new Date().toISOString().slice(0, 7), unit: '', presidentName: '', points: 0 });
   const [transferData, setTransferData] = useState({ oldUserId: '', newUserId: '', unit: '', reason: '' });
   
@@ -26,7 +24,6 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
   useEffect(() => {
     fetchPresidents();
     if (activeSubTab === 'announcements') fetchAnnouncements();
-    if (activeSubTab === 'targets') fetchTargets();
     if (activeSubTab === 'champions') fetchChampions();
     if (activeSubTab === 'transfer') fetchUnitHistory();
   }, [activeSubTab]);
@@ -48,12 +45,6 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
     } catch (e) { console.error(e); }
   };
 
-  const fetchTargets = async () => {
-    try {
-      const res = await fetchWithAuth('/system/targets');
-      if (res.ok) setTargets(await res.json());
-    } catch (e) { console.error(e); }
-  };
 
   const fetchChampions = async () => {
     try {
@@ -104,26 +95,6 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
     });
   };
 
-  // --- TARGET HANDLERS ---
-  const handleSetTarget = async (e) => {
-    e.preventDefault();
-    setLoadingScreen(true);
-    try {
-      const res = await fetchWithAuth('/system/targets', {
-        method: 'POST',
-        body: JSON.stringify(newTarget)
-      });
-      if (res.ok) {
-        showNotification('Hedef kaydedildi.', 'success');
-        setNewTarget({ ...newTarget, routineTarget: 0, extraTarget: 0 });
-        fetchTargets();
-      } else {
-        const d = await res.json();
-        showNotification(d.message, 'error');
-      }
-    } catch (e) { showNotification('Hata.', 'error'); }
-    setLoadingScreen(false);
-  };
 
   // --- CHAMPION HANDLERS ---
   const handleAddChampion = async (e) => {
@@ -149,6 +120,20 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
   // --- TRANSFER HANDLERS ---
   const handleTransferUnit = async (e) => {
     e.preventDefault();
+
+    if (transferData.oldUserId && transferData.oldUserId === transferData.newUserId) {
+      showNotification('Devreden ve devralan kişi aynı olamaz!', 'warning');
+      return;
+    }
+
+    if (transferData.oldUserId) {
+      const oldUser = presidents.find(p => p.id.toString() === transferData.oldUserId.toString());
+      if (oldUser && oldUser.assignedUnit !== transferData.unit) {
+        showNotification(`Devreden kişi (${oldUser.fullName}) ${transferData.unit} başkanı değil!`, 'warning');
+        return;
+      }
+    }
+
     setLoadingScreen(true);
     try {
       const res = await fetchWithAuth('/system/transfer-unit', {
@@ -174,9 +159,6 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
       <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', overflowX: 'auto' }}>
         <button className={`btn ${activeSubTab === 'announcements' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveSubTab('announcements')}>
           <Megaphone size={16} /> Duyurular
-        </button>
-        <button className={`btn ${activeSubTab === 'targets' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveSubTab('targets')}>
-          <Target size={16} /> Aylık Hedefler
         </button>
         <button className={`btn ${activeSubTab === 'champions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveSubTab('champions')}>
           <Award size={16} /> Şampiyonlar Arşivi
@@ -228,60 +210,6 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* HEDEFLER */}
-      {activeSubTab === 'targets' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-          <div className="card" style={{ textAlign: 'left' }}>
-            <h3 style={{ fontSize: '18px', marginBottom: '1rem' }}>Aylık Hedef Belirle</h3>
-            <form onSubmit={handleSetTarget} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label className="form-label">Ay (YYYY-MM)</label>
-                <input required type="month" className="form-control" value={newTarget.month} onChange={e => setNewTarget({...newTarget, month: e.target.value})} />
-              </div>
-              <div>
-                <label className="form-label">Birim</label>
-                <select required className="form-control" value={newTarget.unit} onChange={e => setNewTarget({...newTarget, unit: e.target.value})}>
-                  <option value="">Seçiniz...</option>
-                  {validUnits.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label">Rutin Hedefi (Puan)</label>
-                <input required type="number" min="0" className="form-control" value={newTarget.routineTarget} onChange={e => setNewTarget({...newTarget, routineTarget: parseInt(e.target.value)})} />
-              </div>
-              <div>
-                <label className="form-label">Ekstra Etkinlik Hedefi (Puan)</label>
-                <input required type="number" min="0" className="form-control" value={newTarget.extraTarget} onChange={e => setNewTarget({...newTarget, extraTarget: parseInt(e.target.value)})} />
-              </div>
-              <button type="submit" className="btn btn-primary"><CheckCircle size={16} /> Hedefi Kaydet</button>
-            </form>
-          </div>
-          <div className="card" style={{ textAlign: 'left' }}>
-            <h3 style={{ fontSize: '18px', marginBottom: '1rem' }}>Tüm Hedefler</h3>
-            <table className="table" style={{ width: '100%', fontSize: '14px' }}>
-              <thead>
-                <tr>
-                  <th>Ay</th>
-                  <th>Birim</th>
-                  <th>Rutin Hedef</th>
-                  <th>Ekstra Hedef</th>
-                </tr>
-              </thead>
-              <tbody>
-                {targets.map(t => (
-                  <tr key={t.id}>
-                    <td>{t.month}</td>
-                    <td>{t.unit}</td>
-                    <td>{t.routineTarget}</td>
-                    <td>{t.extraTarget}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </div>
       )}
