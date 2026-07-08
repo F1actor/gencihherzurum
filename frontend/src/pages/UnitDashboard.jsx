@@ -85,10 +85,15 @@ export default function UnitDashboard() {
         fetchWithAuth('/system/targets/unit')
       ]);
 
-      if (routinesRes.ok) setMyRoutines(await routinesRes.json());
+      let routinesData = [];
+      if (routinesRes.ok) {
+        routinesData = await routinesRes.json();
+        setMyRoutines(routinesData);
+      }
       
+      let eventsData = [];
       if (eventsRes.ok) {
-        const eventsData = await eventsRes.json();
+        eventsData = await eventsRes.json();
         setMyEvents(eventsData);
         const totalPoints = eventsData.reduce((sum, e) => sum + e.pointsEarned, 0);
         setStats(prev => ({ ...prev, points: totalPoints, count: eventsData.length }));
@@ -113,7 +118,7 @@ export default function UnitDashboard() {
 
       // Rutin hatırlatma: Bu haftanın rutin günleri ile karşılaştır
       if (routinesRes.ok) {
-        const routines = await routinesRes.json();
+        const routines = routinesData; // Önceki json datasını kullan
         setMyRoutines(routines);
 
         if (eventsRes.ok) {
@@ -126,10 +131,7 @@ export default function UnitDashboard() {
           const weekStart = startOfWeek.toISOString().split('T')[0];
 
           // Haftalık mevcut etkinlikleri al (zaten eventsData yüklü)
-          const eventsDataForCheck = await (async () => {
-            const r = await fetchWithAuth('/events/my-events');
-            return r.ok ? r.json() : [];
-          })();
+          const eventsDataForCheck = eventsData;
 
           const missing = [];
           for (const r of routines) {
@@ -401,31 +403,29 @@ export default function UnitDashboard() {
             </button>
           )}
 
-          {user?.assignedUnit !== 'Tanıtım ve Medya Başkanı' && (
-            <button 
-              onClick={() => { triggerTransition(() => setActiveTab('dashboard')); 
-                // Duyuruları okunmuş işaretle
-                const ids = announcements.map(a => a.id);
-                localStorage.setItem('readAnnouncements', JSON.stringify(ids));
-                setUnreadAnnouncementCount(0);
-              }} 
-              className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', position: 'relative' }}
-              title="Ana Sayfa"
-            >
-              <Calendar size={18} />
-              {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Ana Sayfa</span>}
-              {unreadAnnouncementCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '6px', right: '8px',
-                  backgroundColor: '#ef4444', color: 'white',
-                  borderRadius: '50%', width: '18px', height: '18px',
-                  fontSize: '10px', fontWeight: 'bold',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>{unreadAnnouncementCount}</span>
-              )}
-            </button>
-          )}
+          <button 
+            onClick={() => { triggerTransition(() => setActiveTab('dashboard')); 
+              // Duyuruları okunmuş işaretle
+              const ids = announcements.map(a => a.id);
+              localStorage.setItem('readAnnouncements', JSON.stringify(ids));
+              setUnreadAnnouncementCount(0);
+            }} 
+            className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', position: 'relative', marginTop: '10px' }}
+            title="Ana Sayfa"
+          >
+            <Calendar size={18} />
+            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Ana Sayfa</span>}
+            {unreadAnnouncementCount > 0 && (
+              <span style={{
+                position: 'absolute', top: '6px', right: '8px',
+                backgroundColor: '#ef4444', color: 'white',
+                borderRadius: '50%', width: '18px', height: '18px',
+                fontSize: '10px', fontWeight: 'bold',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>{unreadAnnouncementCount}</span>
+            )}
+          </button>
 
           {/* Haftalık Rutinler Kartı */}
           {!isSidebarCollapsed && (
@@ -902,7 +902,7 @@ export default function UnitDashboard() {
                   <div style={{ display: 'flex', gap: '15px', flex: 1, overflow: 'hidden' }}>
                     {event.proofImagePath ? (
                       <img 
-                        src={`http://127.0.0.1:5000${event.proofImagePath}`} 
+                        src={`http://localhost:5000${event.proofImagePath}`} 
                         alt="Kanıt Görsel" 
                         style={{ width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} 
                       />
@@ -1101,7 +1101,7 @@ export default function UnitDashboard() {
             <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
               <div style={{ backgroundColor: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                 <img
-                  src={`http://127.0.0.1:5000${previewImage.url}`}
+                  src={`http://localhost:5000${previewImage.url}`}
                   alt="Büyük Kanıt"
                   style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', display: 'block' }}
                 />
@@ -1147,7 +1147,7 @@ export default function UnitDashboard() {
                   Kapat
                 </button>
                 <a
-                  href={`http://127.0.0.1:5000${previewImage.url}`}
+                  href={`http://localhost:5000${previewImage.url}`}
                   download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                   target="_blank"
                   rel="noopener noreferrer"

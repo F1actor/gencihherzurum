@@ -29,17 +29,23 @@ exports.chatWithAI = async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Gemini 1.5 Flash kullanıyoruz (hızlı ve ücretsiz paket için ideal)
+    // Gemini 2.5 Flash kullanıyoruz (hızlı ve ücretsiz paket için ideal)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       systemInstruction: SYSTEM_INSTRUCTION
     });
 
     // Sohbet geçmişini Gemini formatına çeviriyoruz
-    const formattedHistory = (history || []).map(msg => ({
+    let formattedHistory = (history || []).map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }]
     }));
+
+    // ÖNEMLİ: Gemini API, sohbet geçmişinin MUTLAKA 'user' (kullanıcı) rolüyle başlamasını şart koşar.
+    // İlk mesaj botun varsayılan selamlama mesajıysa bunu geçmişten çıkarıyoruz.
+    while (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
+      formattedHistory.shift();
+    }
 
     const chat = model.startChat({
       history: formattedHistory,

@@ -214,7 +214,7 @@ export default function AdminDashboard() {
   const handleExportCSV = async () => {
     try {
       showNotification('Rapor hazırlanıyor, lütfen bekleyin...', 'info');
-      const response = await fetch(`http://127.0.0.1:5000/api/reports/export-csv`, {
+      const response = await fetch(`http://localhost:5000/api/reports/export-csv`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (!response.ok) throw new Error('Rapor indirilemedi');
@@ -1400,7 +1400,7 @@ export default function AdminDashboard() {
             
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000', borderRadius: 'var(--radius-md)', marginBottom: '15px' }}>
               <img 
-                src={`http://127.0.0.1:5000${previewImage.url}`} 
+                src={`http://localhost:5000${previewImage.url}`} 
                 alt="Kanıt Önizleme" 
                 style={{
                   maxWidth: '100%',
@@ -1456,7 +1456,7 @@ export default function AdminDashboard() {
                 Kapat
               </button>
               <a
-                href={`http://127.0.0.1:5000${previewImage.url}`}
+                href={`http://localhost:5000${previewImage.url}`}
                 download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                 target="_blank"
                 rel="noopener noreferrer"

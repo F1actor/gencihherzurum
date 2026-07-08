@@ -107,7 +107,7 @@ export default function EventMediaGallery({ eventsGallery, setPreviewImage }) {
                     <td style={{ padding: '10px 16px' }}>
                       {ev.proofImagePath ? (
                         <img
-                          src={`http://127.0.0.1:5000${ev.proofImagePath}`}
+                          src={`http://localhost:5000${ev.proofImagePath}`}
                           alt="Kanıt"
                           style={{
                             width: '64px', height: '64px', objectFit: 'cover',

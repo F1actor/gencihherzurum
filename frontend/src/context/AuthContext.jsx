@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [theme, setTheme] = useState(localStorage.getItem('gencihh_theme') || 'light');
   const [loadingScreen, setLoadingScreen] = useState(false);
 
-  const API_URL = 'http://127.0.0.1:5000/api';
+  const API_URL = 'http://localhost:5000/api';
 
   // Tema değiştirme işlevi
   useEffect(() => {
