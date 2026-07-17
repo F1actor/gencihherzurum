@@ -144,7 +144,25 @@ git clone https://github.com/F1actor/gencihherzurum.git
 cd gencihherzurum
 ```
 
-### 2. Backend kurulumu
+### 🐳 2. Docker ile Tek Tıkla Kurulum (Tavsiye Edilen)
+
+Eğer bilgisayarınızda **Docker Desktop** yüklüyse, projeyi veritabanı dahil tek komutla çalıştırabilirsiniz:
+
+1. Gerekli ayar dosyalarını oluşturun:
+   - `backend/.env.example` dosyasının adını `backend/.env` yapın.
+   - `frontend/.env.example` dosyasının adını `frontend/.env` yapın.
+
+2. Sistemi ayağa kaldırın:
+```bash
+docker-compose up -d --build
+```
+Projeniz `http://localhost` (80 portu) adresinde yayında olacaktır!
+
+---
+
+### 💻 3. Manuel Kurulum (Eski Yöntem)
+
+#### Backend kurulumu
 
 ```bash
 cd backend
