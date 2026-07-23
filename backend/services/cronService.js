@@ -12,21 +12,21 @@ const competitiveUnits = [
 async function checkUnitActivity() {
   console.log('Pasiflik denetimi çalıştırılıyor...');
   try {
-    const activePresidents = await query.all(
-      "SELECT id, fullName, assignedUnit, createdAt FROM users WHERE role = 'UNIT_PRESIDENT' AND assignedUnit IS NOT NULL"
-    );
-
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
     const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split('T')[0];
 
-    for (const president of activePresidents) {
+    const unitPresidents = await query.all(
+      "SELECT id, fullName, assignedUnit, createdAt FROM users WHERE role = 'UNIT_PRESIDENT' AND assignedUnit IS NOT NULL"
+    );
+
+    for (const president of unitPresidents) {
+      let isInactive = false;
       const lastEvent = await query.get(
         "SELECT MAX(eventDate) as lastDate FROM events WHERE userId = ?",
         [president.id]
       );
 
-      let isInactive = false;
       let lastDate = lastEvent.lastDate;
 
       if (!lastDate) {
@@ -44,8 +44,12 @@ async function checkUnitActivity() {
       if (isInactive) {
         const warningMsg = `UYARI: ${president.assignedUnit} (${president.fullName}) son 2 haftadır (En son: ${lastDate || 'Hiç'}) sisteme etkinlik veya kanıt girişi yapmadı!`;
         
+        const dateQuery = require('../config/database').dbType === 'postgres' 
+          ? "createdAt >= NOW() - INTERVAL '1 day'" 
+          : "createdAt >= datetime('now', '-1 day')";
+
         const duplicateWarning = await query.get(
-          `SELECT id FROM audits WHERE logType = 'WARNING' AND message = ? AND createdAt >= datetime('now', '-1 day')`,
+          `SELECT id FROM audits WHERE logType = 'WARNING' AND message = ? AND ${dateQuery}`,
           [warningMsg]
         );
 

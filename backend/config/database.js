@@ -84,6 +84,18 @@ function normalizeRow(row) {
     else if (key === 'targetname') newKey = 'targetName';
     else if (key === 'targetpoints') newKey = 'targetPoints';
     else if (key === 'targetid') newKey = 'targetId';
+    else if (key === 'childname') newKey = 'childName';
+    else if (key === 'parentname') newKey = 'parentName';
+    else if (key === 'classid') newKey = 'classId';
+    else if (key === 'teacherid') newKey = 'teacherId';
+    else if (key === 'agegroup') newKey = 'ageGroup';
+    else if (key === 'menudate') newKey = 'menuDate';
+    else if (key === 'fooditems') newKey = 'foodItems';
+    else if (key === 'studentid') newKey = 'studentId';
+    else if (key === 'attendancedate') newKey = 'attendanceDate';
+    else if (key === 'ispresent') newKey = 'isPresent';
+    else if (key === 'settingkey') newKey = 'settingKey';
+    else if (key === 'settingvalue') newKey = 'settingValue';
     
     newRow[newKey] = row[key];
   }
@@ -307,6 +319,61 @@ async function initDatabase() {
         await query.run('ALTER TABLE events ADD COLUMN targetId INTEGER');
       }
     } catch (e) { /* ignore if exists */ }
+
+    // --- MUHABBET OKULU TABLOLARI ---
+    await query.run(`
+      CREATE TABLE IF NOT EXISTS muhabbet_students (
+        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        childName TEXT NOT NULL,
+        parentName TEXT NOT NULL,
+        address TEXT NOT NULL,
+        phoneNumber TEXT NOT NULL,
+        grade TEXT NOT NULL,
+        classId INTEGER,
+        status TEXT DEFAULT 'PENDING',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await query.run(`
+      CREATE TABLE IF NOT EXISTS muhabbet_classes (
+        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        name TEXT NOT NULL,
+        ageGroup TEXT,
+        teacherId INTEGER,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await query.run(`
+      CREATE TABLE IF NOT EXISTS muhabbet_menus (
+        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        menuDate TEXT NOT NULL,
+        foodItems TEXT NOT NULL,
+        activities TEXT NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await query.run(`
+      CREATE TABLE IF NOT EXISTS muhabbet_attendance (
+        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        studentId INTEGER NOT NULL,
+        classId INTEGER NOT NULL,
+        attendanceDate TEXT NOT NULL,
+        isPresent INTEGER DEFAULT 0,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await query.run(`
+      CREATE TABLE IF NOT EXISTS muhabbet_settings (
+        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        settingKey TEXT NOT NULL UNIQUE,
+        settingValue TEXT NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     // --- SEEDING ---
     const adminExists = await query.get("SELECT * FROM users WHERE role = 'SUPER_ADMIN'");
     if (!adminExists) {

@@ -14,6 +14,7 @@ import MonthlyGoalsPanel from '../components/MonthlyGoalsPanel';
 import AnnualReportPanel from '../components/AnnualReportPanel';
 import PerformancePanel from '../components/PerformancePanel';
 import MonthlyReportPanel from '../components/MonthlyReportPanel';
+import MuhabbetAdminPanel from '../components/MuhabbetAdminPanel';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -29,7 +30,9 @@ const validUnits = [
   'Çalışan Gençlik Başkanı',
   'Sosyal Faaliyet Başkanı',
   'Proje - Fon Başkanı',
-  'Atom Başkanı'
+  'Atom Başkanı',
+  'Yaz Okulu Hocası',
+  'Yaz Okulu Koordinatörü'
 ];
 
 const daysMap = {
@@ -45,7 +48,7 @@ const daysMap = {
 export default function AdminDashboard() {
   const { user, logout, theme, toggleTheme, fetchWithAuth, setLoadingScreen, triggerTransition } = useAuth();
   const { showNotification, showConfirm } = useNotification();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'reports', 'tasks', etc.
+  const [activeTab, setActiveTab] = useState(user?.role === 'MUHABBET_COORDINATOR' ? 'muhabbet' : 'overview'); // 'overview', 'reports', 'tasks', etc.
   const [activeReportTab, setActiveReportTab] = useState('performance'); // 'performance', 'monthly', 'annual'
   const [activeTaskTab, setActiveTaskTab] = useState('routines'); // 'routines', 'targets'
 
@@ -215,7 +218,7 @@ export default function AdminDashboard() {
     try {
       showNotification('Rapor hazırlanıyor, lütfen bekleyin...', 'info');
       const response = await fetch(`http://localhost:5000/api/reports/export-csv`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` }
       });
       if (!response.ok) throw new Error('Rapor indirilemedi');
       
@@ -489,76 +492,50 @@ export default function AdminDashboard() {
           {!isSidebarCollapsed && (
             <div style={{ textAlign: 'left' }}>
               <h3 style={{ fontSize: '15px', fontWeight: '800', fontFamily: 'var(--font-display)', lineHeight: '1.2' }}>Genç İHH</h3>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.5px' }}>SÜPER ADMİN</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.5px' }}>
+                {user?.role === 'MUHABBET_COORDINATOR' ? 'YAZ OKULU KOORDİNATORÜ' : 'SÜPER ADMİN'}
+              </span>
             </div>
           )}
         </div>
 
         {/* Menü Linkleri */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, alignItems: isSidebarCollapsed ? 'center' : 'stretch' }}>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('overview'))} 
-            className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Genel Panel"
-          >
-            <Shield size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Genel Panel</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('presidents'))} 
-            className={`btn ${activeTab === 'presidents' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Birim Başkanları"
-          >
-            <Users size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Birim Başkanları</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('reports'))} 
-            className={`btn ${activeTab === 'reports' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Raporlar"
-          >
-            <BarChart2 size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Raporlar</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('tasks'))} 
-            className={`btn ${activeTab === 'tasks' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Görevler"
-          >
-            <CheckSquare size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Görevler</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('audits'))} 
-            className={`btn ${activeTab === 'audits' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Denetim & Pasiflik"
-          >
-            <Bell size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Denetim & Pasiflik</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('gallery'))} 
-            className={`btn ${activeTab === 'gallery' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Etkinlik Medyası"
-          >
-            <ImageIcon size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Etkinlik Medyası</span>}
-          </button>
-          <button 
-            onClick={() => triggerTransition(() => setActiveTab('system'))} 
-            className={`btn ${activeTab === 'system' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px' }}
-            title="Sistem & Ayarlar"
-          >
-            <Settings size={18} />
-            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Sistem Yönetimi</span>}
-          </button>
+          {(() => {
+            const isCoordinator = user?.role === 'MUHABBET_COORDINATOR';
+            const disabledStyle = { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' };
+            const navItems = [
+              { id: 'overview', icon: <Shield size={18} />, label: 'Genel Panel' },
+              { id: 'presidents', icon: <Users size={18} />, label: 'Birim Başkanları' },
+              { id: 'reports', icon: <BarChart2 size={18} />, label: 'Raporlar' },
+              { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Görevler' },
+              { id: 'audits', icon: <Bell size={18} />, label: 'Denetim & Pasiflik' },
+              { id: 'gallery', icon: <ImageIcon size={18} />, label: 'Etkinlik Medyası' },
+              { id: 'muhabbet', icon: <Target size={18} />, label: 'Muhabbet Okulu' },
+              { id: 'system', icon: <Settings size={18} />, label: 'Sistem Yönetimi' },
+            ];
+            return navItems.map(item => {
+              const isOnlyAllowed = isCoordinator && item.id !== 'muhabbet';
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => !isOnlyAllowed && triggerTransition(() => setActiveTab(item.id))}
+                  className={`btn ${activeTab === item.id ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+                    width: '100%',
+                    padding: isSidebarCollapsed ? '10px 0' : '10px 16px',
+                    ...(isOnlyAllowed ? disabledStyle : {})
+                  }}
+                  title={isOnlyAllowed ? 'Bu alana erişim yetkiniz yok' : item.label}
+                  disabled={isOnlyAllowed}
+                >
+                  {item.icon}
+                  {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>{item.label}</span>}
+                </button>
+              );
+            });
+          })()}
         </nav>
 
         {/* Profil ve Çıkış */}
@@ -629,6 +606,7 @@ export default function AdminDashboard() {
               {activeTab === 'tasks' && 'Görevler ve Hedefler'}
               {activeTab === 'audits' && 'Sistem Denetimi ve Pasiflik Uyarıları'}
               {activeTab === 'gallery' && 'Etkinlik Medyası'}
+              {activeTab === 'muhabbet' && 'Muhabbet Okulu Yönetimi'}
               {activeTab === 'system' && 'Sistem Ayarları ve Duyurular'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
@@ -1252,6 +1230,13 @@ export default function AdminDashboard() {
         {/* TAB 9: SYSTEM */}
         {activeTab === 'system' && (
           <SystemSettingsPanel validUnits={validUnits} loadDashboardData={loadDashboardData} />
+        )}
+
+        {/* TAB: MUHABBET OKULU */}
+        {activeTab === 'muhabbet' && (
+          <div className="card" style={{ padding: '20px', minHeight: '500px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
+            <MuhabbetAdminPanel allUsers={allUsers} />
+          </div>
         )}
 
         {/* TAB 10: GALLERY */}

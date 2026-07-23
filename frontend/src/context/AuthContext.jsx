@@ -112,9 +112,13 @@ export const AuthProvider = ({ children }) => {
 
   // Çıkış Yap
   const logout = () => {
-    localStorage.removeItem('gencihh_token');
-    setToken(null);
-    setUser(null);
+    setLoadingScreen(true);
+    setTimeout(() => {
+      localStorage.removeItem('gencihh_token');
+      setToken(null);
+      setUser(null);
+      setLoadingScreen(false);
+    }, 500);
   };
 
   // Yetkili API istekleri için yardımcı fonksiyon

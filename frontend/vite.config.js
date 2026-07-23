@@ -8,3 +8,5 @@ export default defineConfig({
     port: 3000
   }
 })
+
+// Triggering Vite restart to load .env

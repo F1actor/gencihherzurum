@@ -32,7 +32,8 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
     try {
       const res = await fetchWithAuth('/admin/users');
       const data = await res.json();
-      setPresidents(data.filter(u => u.role === 'UNIT_PRESIDENT' || u.role === 'PENDING'));
+      // Tüm rollerdeki (UNIT_PRESIDENT, SUPER_ADMIN, MUHABBET_TEACHER) atanmış kullanıcılar + PENDING
+      setPresidents(data.filter(u => u.assignedUnit || u.role === 'PENDING'));
     } catch (e) {
       console.error(e);
     }
@@ -278,7 +279,7 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
                 <label className="form-label">Eski Başkan (Görevi Bırakan)</label>
                 <select className="form-control" value={transferData.oldUserId} onChange={e => setTransferData({...transferData, oldUserId: e.target.value})}>
                   <option value="">-- Yok --</option>
-                  {presidents.filter(p => p.role === 'UNIT_PRESIDENT').map(p => (
+                  {presidents.filter(p => p.assignedUnit).map(p => (
                     <option key={p.id} value={p.id}>{p.fullName} ({p.assignedUnit})</option>
                   ))}
                 </select>

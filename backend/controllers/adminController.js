@@ -33,7 +33,9 @@ exports.assignUnit = async (req, res) => {
     'Çalışan Gençlik Başkanı',
     'Sosyal Faaliyet Başkanı',
     'Proje - Fon Başkanı',
-    'Atom Başkanı'
+    'Atom Başkanı',
+    'Yaz Okulu Hocası',
+    'Yaz Okulu Koordinatörü'
   ];
 
   if (!validUnits.includes(unit)) {
@@ -52,10 +54,17 @@ exports.assignUnit = async (req, res) => {
       [unit]
     );
 
-    // İl Başkanı veya Teşkilatlanma Başkanı atandıysa rolü SUPER_ADMIN yapıyoruz, diğerlerini UNIT_PRESIDENT
-    const assignedRole = (unit === 'İl Başkanı' || unit === 'Teşkilatlanma Başkanı')
-      ? 'SUPER_ADMIN'
-      : 'UNIT_PRESIDENT';
+    // İl Başkanı veya Teşkilatlanma Başkanı atandıysa rolü SUPER_ADMIN yapıyoruz,
+    // Yaz Okulu Koordinatörü ise MUHABBET_COORDINATOR, Yaz Okulu Hocası ise MUHABBET_TEACHER,
+    // diğerlerini UNIT_PRESIDENT
+    let assignedRole = 'UNIT_PRESIDENT';
+    if (unit === 'İl Başkanı' || unit === 'Teşkilatlanma Başkanı') {
+      assignedRole = 'SUPER_ADMIN';
+    } else if (unit === 'Yaz Okulu Koordinatörü') {
+      assignedRole = 'MUHABBET_COORDINATOR';
+    } else if (unit === 'Yaz Okulu Hocası') {
+      assignedRole = 'MUHABBET_TEACHER';
+    }
 
     // Birim atamasını gerçekleştir
     await query.run(
@@ -63,7 +72,11 @@ exports.assignUnit = async (req, res) => {
       [assignedRole, unit, userId]
     );
 
-    let message = `${user.fullName} kullanıcısı ${unit} olarak başarıyla atandı ve ${assignedRole === 'SUPER_ADMIN' ? 'Süper Admin' : 'Birim Başkanı'} yetkileri tanımlandı.`;
+    let message = `${user.fullName} kullanıcısı ${unit} olarak başarıyla atandı ve ${
+      assignedRole === 'SUPER_ADMIN' ? 'Süper Admin' :
+      assignedRole === 'MUHABBET_COORDINATOR' ? 'Yaz Okulu Koordinatörü' :
+      assignedRole === 'MUHABBET_TEACHER' ? 'Yaz Okulu Hocası' : 'Birim Başkanı'
+    } yetkileri tanımlandı.`;
     if (existingPresident) {
       message += ` Not: Bu birimde daha önce ${existingPresident.fullName} atanmıştı.`;
     }

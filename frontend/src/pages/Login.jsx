@@ -218,6 +218,11 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
             </p>
           )}
         </div>
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <a href="/" style={{ fontSize: '14px', color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '500' }}>
+            ← Ana Sayfaya Dön
+          </a>
+        </div>
       </form>
     </AuthLayout>
   );

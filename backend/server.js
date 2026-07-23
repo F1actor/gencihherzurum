@@ -11,6 +11,7 @@ const eventRoutes = require('./routes/events');
 const reportsRoutes = require('./routes/reports');
 const systemRoutes = require('./routes/system');
 const llmRoutes = require('./routes/llm');
+const muhabbetRoutes = require('./routes/muhabbet');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/llm', llmRoutes);
+app.use('/api/muhabbet', muhabbetRoutes);
 
 // Sağlık kontrolü
 app.get('/health', (req, res) => {

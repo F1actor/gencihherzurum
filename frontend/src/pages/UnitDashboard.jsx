@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import logoImg from '../assets/logo.jpg';
 import EventMediaGallery from '../components/EventMediaGallery';
+import MuhabbetTeacherDashboard from './MuhabbetTeacherDashboard';
 
 const daysMap = {
   1: 'Pazartesi',
@@ -306,6 +307,10 @@ export default function UnitDashboard() {
     }
   };
 
+  if (activeTab === 'teacher_mode') {
+    return <MuhabbetTeacherDashboard onBack={() => setActiveTab('dashboard')} />;
+  }
+
   return (
     <div className="app-container">
       {/* Sidebar */}
@@ -402,6 +407,16 @@ export default function UnitDashboard() {
               {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Etkinlik Medyası</span>}
             </button>
           )}
+
+          <button 
+            onClick={() => triggerTransition(() => setActiveTab('teacher_mode'))} 
+            className={`btn ${activeTab === 'teacher_mode' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px' }}
+            title="Muhabbet Hoca Paneli"
+          >
+            <User size={18} />
+            {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Muhabbet Hoca Paneli</span>}
+          </button>
 
           <button 
             onClick={() => { triggerTransition(() => setActiveTab('dashboard')); 
