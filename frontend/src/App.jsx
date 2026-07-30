@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { NotificationProvider } from './context/NotificationContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import VerifyOtp from './pages/VerifyOtp';
-import AdminDashboard from './pages/AdminDashboard';
-import UnitDashboard from './pages/UnitDashboard';
-import MuhabbetTeacherDashboard from './pages/MuhabbetTeacherDashboard';
+import { AuthProvider, useAuth } from './shared/context/AuthContext';
+import { NotificationProvider } from './shared/context/NotificationContext';
+import Login from './features/auth/Login';
+import Register from './features/auth/Register';
+import VerifyOtp from './features/auth/VerifyOtp';
+import AdminDashboard from './features/dashboard/AdminDashboard';
+import UnitDashboard from './features/dashboard/UnitDashboard';
+import MuhabbetTeacherDashboard from './features/muhabbet/MuhabbetTeacherDashboard';
 import { ShieldAlert, RefreshCw, LogOut, Sun, Moon } from 'lucide-react';
 import logoImg from './assets/logo.jpg';
-import AIChatWidget from './components/AIChatWidget';
+import AIChatWidget from './shared/ui/AIChatWidget';
 
 // Public Pages
-import PublicHome from './pages/PublicHome';
-import MuhabbetApply from './pages/MuhabbetApply';
-import MuhabbetPortal from './pages/MuhabbetPortal';
+import PublicHome from './features/public/PublicHome';
+import MuhabbetApply from './features/muhabbet/MuhabbetApply';
+import MuhabbetPortal from './features/muhabbet/MuhabbetPortal';
 
 function PortalContent() {
   const { user, loading, logout, theme, toggleTheme, loadingScreen, triggerTransition } = useAuth();

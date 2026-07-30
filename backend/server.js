@@ -2,16 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initDatabase } = require('./config/database');
-const { initCronJobs } = require('./services/cronService');
+const { initDatabase } = require('./src/config/database');
+const { initCronJobs } = require('./src/services/cronService');
+const errorMiddleware = require('./src/middleware/errorMiddleware');
 
-const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin');
-const eventRoutes = require('./routes/events');
-const reportsRoutes = require('./routes/reports');
-const systemRoutes = require('./routes/system');
-const llmRoutes = require('./routes/llm');
-const muhabbetRoutes = require('./routes/muhabbet');
+const authRoutes = require('./src/modules/auth/authRoutes');
+const adminRoutes = require('./src/modules/admin/adminRoutes');
+const eventRoutes = require('./src/modules/events/eventsRoutes');
+const reportsRoutes = require('./src/modules/reports/reportsRoutes');
+const systemRoutes = require('./src/modules/system/systemRoutes');
+const llmRoutes = require('./src/modules/llm/llmRoutes');
+const muhabbetRoutes = require('./src/modules/muhabbet/muhabbetRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,8 +28,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Kanıt resimlerinin static olarak sunulması
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Uploads (kanıt resimleri) static olarak sun
+app.use('/uploads', express.static(path.join(__dirname, 'src', 'modules', 'uploads')));
 
 // API Rotaları
 app.use('/api/auth', authRoutes);
@@ -44,13 +45,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Genç İHH Backend çalışıyor.' });
 });
 
-// Hata Yakalama Middleware'i
-app.use((err, req, res, next) => {
-  console.error('Beklenmeyen bir hata oluştu:', err);
-  res.status(err.status || 500).json({
-    message: err.message || 'Sunucuda beklenmeyen bir hata oluştu.'
-  });
-});
+// Global Hata Yakalama Middleware'i (errorMiddleware)
+app.use(errorMiddleware);
 
 // Sunucuyu Başlat
 async function startServer() {
