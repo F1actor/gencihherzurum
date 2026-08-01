@@ -234,9 +234,7 @@ export default function PublicHome() {
           <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
             © {new Date().getFullYear()} Genç İHH Erzurum. Tüm hakları saklıdır.
           </p>
-          <div style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            Sistem Altyapısı: Antigravity IDE
-          </div>
+
         </div>
       </footer>
     </div>

@@ -4,6 +4,18 @@ const AppError = require('../../core/errors/AppError');
 const SYSTEM_INSTRUCTION = `
 Sen Genç İHH Erzurum Teşkilat Portalı için geliştirilmiş resmi, akıllı, yardımsever ve doğal konuşan asistan botusun.
 Sisteme giriş yapan birim başkanlarına, yöneticilere ve üyelere hem günlük sohbetlerde (nasılsın, merhaba vb.) sıcak cevaplar verir hem de web uygulaması kullanımı hakkında rehberlik edersin.
+
+Sistem Hakkında Detaylı Bilgiler:
+- **Genel Yapı:** Bu sistem Genç İHH Erzurum şubesindeki teşkilat yapısını yönetmek, birimlerin performansını ölçmek ve etkinlikleri takip etmek için tasarlanmıştır.
+- **Birimler:** Sistemde Üniversite, Lise, Ortaokul, İHH Çocuk, Eğitim, Tanıtım ve Medya, Çalışan Gençlik ve Sosyal Faaliyet gibi farklı birimler bulunur.
+- **Etkinlikler & Puanlama:** Birimler sisteme etkinlik girer. Etkinlik türleri: Rutin Görev (10 Puan), Ekstra Görev (20 Puan), Aylık Hedef (Değişken Puan). Etkinlikler kanıt fotoğrafı (medya) ile eklenir.
+- **Performans Raporları:** Son 30 günlük rutin başarı oranları, genel liderlik tabloları ve haftalık özet istatistikler sistem tarafından hesaplanır.
+- **Muhabbet Okulu:** Yaz okulu kapsamında öğrenci kayıtları alınır, öğrenciler yaş gruplarına göre sınıflara atanır, hocalar atanır ve online günlük yoklama işlemleri yürütülür.
+
+Kesin Kurallar:
+1. Normal muhabbet etmeyi, insan gibi doğal ve sıcakkanlı cevaplar vermeyi unutma. "Nasılsın", "günaydın" gibi sorulara içten ve resmiyetle karışık tatlı bir dille cevap ver.
+2. Sistemin çalışması, menüler ve nasıl kullanılacağı hakkında sorulan sorulara rehberlik et.
+3. KESİNLİKLE KÜFÜR, ARGO VEYA HAKARET İÇEREN MESAJLARA CEVAP VERME. Eğer kullanıcı küfür, argo veya uygunsuz bir dil kullanırsa, sohbeti derhal kes ve şu uyarıyı ver: "Lütfen üslubunuza dikkat edin. Genç İHH ahlakına ve teşkilat adabına uygun olmayan kelimeler kullandığınız için bu mesaja cevap veremiyorum." Bu kural esnetilemez.
 `;
 
 /**
@@ -11,6 +23,13 @@ Sisteme giriş yapan birim başkanlarına, yöneticilere ve üyelere hem günlü
  */
 function generateNaturalReply(userMessage) {
   const msg = userMessage.toLowerCase().trim();
+
+  // 0. Küfür ve Argo Kontrolü
+  const swearWords = ['amk', 'aq', 'siktir', 'piç', 'oç', 'yavşak', 'sik', 'göt', 'ibne', 'pezevenk', 'şerefsiz', 'aptal', 'salak', 'mal'];
+  const containsSwear = swearWords.some(word => msg.includes(word));
+  if (containsSwear) {
+    return 'Lütfen üslubunuza dikkat edin. Genç İHH ahlakına ve teşkilat adabına uygun olmayan kelimeler kullandığınız için bu mesaja cevap veremiyorum.';
+  }
 
   // 1. Günlük Sohbet & Hal Hatır
   if (msg.includes('nasılsın') || msg.includes('nasilsin') || msg.includes('naber') || msg.includes('keyifler')) {
@@ -55,8 +74,15 @@ function generateNaturalReply(userMessage) {
     return 'Size yardımcı olmaktan mutluluk duyarım! Öğrenmek istediğiniz konuyu yazabilirsiniz (Örn: "etkinlik nasıl eklenir", "sistemde neler var", "muhabbet okulu kullanımı", "nasılsın").';
   }
 
-  // 3. Genel Bilinmeyen Mesajlar İçin Sıcak Doğal Yanıt
-  return `Harika bir soru! Genç İHH Erzurum web uygulamasında sol menüdeki paneller aracılığıyla etkinliklerinizi girebilir, liderlik tablosunda biriminizin sırasını görebilir ve Muhabbet Okulu işlemlerini yönetebilirsiniz. Başka merak ettiğiniz bir detay var mı?`;
+  // 3. Genel Bilinmeyen Mesajlar İçin Esnek ve Rastgele Yanıtlar
+  const fallbackResponses = [
+    'Anlıyorum, sizi dinliyorum. Genç İHH çalışmalarıyla ilgili sormak istediğiniz belirli bir konu var mı?',
+    'Bu konuda size tam olarak nasıl yardımcı olabilirim? İsterseniz sistem özelliklerinden veya etkinlik ekleme adımlarından bahsedebilirim.',
+    'Harika! Sohbet etmek her zaman güzel. Teşkilat işleri nasıl gidiyor, yardımcı olabileceğim bir şey var mı?',
+    'Sizi çok iyi anlıyorum. Genç İHH Erzurum ekibi olarak çok yoğun çalışıyorsunuz, bu süreçte size destek olmak benim görevim. Sormak istediğiniz bir şey olursa buradayım.',
+    'Ne güzel söylediniz! Konuyu biraz daha açmak ister misiniz? Sistemin kullanımı hakkında takıldığınız bir yer varsa onu da seve seve anlatabilirim.'
+  ];
+  return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
 }
 
 exports.chatWithAI = async ({ message, history }) => {

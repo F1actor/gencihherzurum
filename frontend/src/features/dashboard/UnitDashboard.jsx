@@ -956,7 +956,8 @@ export default function UnitDashboard() {
                     </div>
                     {/* Silme Butonu - 24 saat kontrolü */}
                     {(() => {
-                      const createdAt = new Date(event.createdAt);
+                      const createdAtStr = event.createdAt.includes('T') ? event.createdAt : event.createdAt.replace(' ', 'T') + 'Z';
+                      const createdAt = new Date(createdAtStr);
                       const diffHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
                       const canDelete = diffHours <= 24;
                       return (

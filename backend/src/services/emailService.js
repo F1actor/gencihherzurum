@@ -93,7 +93,7 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
       html: emailHtml,
       attachments: [{
         filename: 'logo.jpg',
-        path: require('path').join(__dirname, '..', 'uploads', 'gencihh.jpeg'),
+        path: require('path').join(__dirname, '..', '..', 'uploads', 'gencihh.jpeg'),
         cid: 'logo'
       }]
     };

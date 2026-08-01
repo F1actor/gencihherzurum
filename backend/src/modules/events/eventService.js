@@ -92,7 +92,8 @@ exports.deleteEvent = async ({ id, user }) => {
 
   if (user.role !== 'SUPER_ADMIN') {
     if (event.userId !== user.id) throw new AppError('Bu etkinliği silme yetkiniz yok.', 403);
-    const diffHours = (Date.now() - new Date(event.createdAt).getTime()) / (1000 * 60 * 60);
+    const createdAtStr = event.createdAt.includes('T') ? event.createdAt : event.createdAt.replace(' ', 'T') + 'Z';
+    const diffHours = (Date.now() - new Date(createdAtStr).getTime()) / (1000 * 60 * 60);
     if (diffHours > 24) throw new AppError('Etkinlikler yalnızca eklendikten sonraki 24 saat içinde silinebilir.', 403);
   }
 
