@@ -4,6 +4,8 @@ dist/
 .DS_Store
 *.log
 backend/uploads/
+backend/src/modules/uploads/*
+!backend/src/modules/uploads/.gitkeep
 backend/database.sqlite
 frontend/dist/
 task.md

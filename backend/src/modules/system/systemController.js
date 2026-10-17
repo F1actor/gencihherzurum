@@ -11,6 +11,20 @@ exports.getUnits = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.createUnit = async (req, res, next) => {
+  try {
+    const result = await systemService.createUnit(req.body);
+    return res.status(201).json({ message: 'Birim oluşturuldu.', id: result.id });
+  } catch (err) { next(err); }
+};
+
+exports.deactivateUnit = async (req, res, next) => {
+  try {
+    await systemService.deactivateUnit(req.params.id);
+    return res.status(200).json({ message: 'Birim pasifleştirildi.' });
+  } catch (err) { next(err); }
+};
+
 exports.getAnnouncements = async (req, res, next) => {
   try {
     const data = await systemService.getAnnouncements();

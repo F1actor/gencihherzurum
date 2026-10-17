@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Send, AlertCircle, Phone, ChevronDown, X, GraduationCap, Loader } from 'lucide-react';
 import logoImg from '../../assets/logo.jpg';
+import { API_URL } from '../../shared/config/api';
 
 export default function MuhabbetApply() {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ export default function MuhabbetApply() {
 
   useEffect(() => {
     // Check if applications are open
-    fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/settings`)
+    fetch(`${API_URL}/muhabbet/settings`)
       .then(res => res.json())
       .then(data => {
         if (data.isApplicationsOpen === false) {
@@ -51,7 +52,7 @@ export default function MuhabbetApply() {
     setError(null);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/apply`, {
+      const res = await fetch(`${API_URL}/muhabbet/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

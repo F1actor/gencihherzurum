@@ -4,6 +4,7 @@ import { Users, Calendar, CheckSquare, Settings, Edit, Trash2, X, UserMinus } fr
 import { useNotification } from '../../shared/context/NotificationContext';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
+import { API_URL } from '../../shared/config/api';
 
 export default function MuhabbetAdminPanel({ allUsers }) {
   const [activeTab, setActiveTab] = useState('applications');
@@ -40,26 +41,26 @@ export default function MuhabbetAdminPanel({ allUsers }) {
 
     try {
       if (activeTab === 'applications') {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/applications`, { headers });
+        const res = await fetch(`${API_URL}/muhabbet/applications`, { headers });
         if (res.ok) setApplications(await res.json());
       } else if (activeTab === 'classes') {
         const [classesRes, usersRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/classes`, { headers }),
-          fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`, { headers })
+          fetch(`${API_URL}/muhabbet/classes`, { headers }),
+          fetch(`${API_URL}/admin/users`, { headers })
         ]);
         if (classesRes.ok) setClasses(await classesRes.json());
         if (usersRes.ok) setTeachersList(await usersRes.json());
       } else if (activeTab === 'menus') {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/menus`, { headers });
+        const res = await fetch(`${API_URL}/muhabbet/menus`, { headers });
         if (res.ok) setMenus(await res.json());
       } else if (activeTab === 'settings') {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/settings`, { headers });
+        const res = await fetch(`${API_URL}/muhabbet/settings`, { headers });
         if (res.ok) setSettings(await res.json());
       } else if (activeTab === 'attendance') {
         const queryParams = new URLSearchParams();
         if (classFilter !== 'ALL') queryParams.append('classId', classFilter);
         if (dateFilter) queryParams.append('date', dateFilter);
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/attendance-report?${queryParams.toString()}`, { headers });
+        const res = await fetch(`${API_URL}/muhabbet/attendance-report?${queryParams.toString()}`, { headers });
         if (res.ok) setAttendanceReports(await res.json());
       }
     } catch (e) {
@@ -78,7 +79,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
     };
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/classes`, {
+      const res = await fetch(`${API_URL}/muhabbet/classes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify(body)
@@ -95,7 +96,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
 
   const handleAssignClass = async (studentId, classId) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/applications/${studentId}`, {
+      const res = await fetch(`${API_URL}/muhabbet/applications/${studentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify({ classId, status: 'APPROVED' })
@@ -119,7 +120,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/menus`, {
+      const res = await fetch(`${API_URL}/muhabbet/menus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify(body)
@@ -140,7 +141,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
   const toggleApplications = async () => {
     try {
       const newValue = !settings.isApplicationsOpen;
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/settings`, {
+      const res = await fetch(`${API_URL}/muhabbet/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify({ isApplicationsOpen: newValue })
@@ -160,7 +161,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
   const handleRemoveFromClass = async (studentId) => {
     showConfirm('Öğrenciyi sınıftan çıkarmak istediğinize emin misiniz?', async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/applications/${studentId}`, {
+        const res = await fetch(`${API_URL}/muhabbet/applications/${studentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
           body: JSON.stringify({ classId: null, status: 'PENDING' })
@@ -176,7 +177,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
   const handleDeleteApplication = async (studentId) => {
     showConfirm('Öğrenci kaydını tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz!', async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/applications/${studentId}`, {
+        const res = await fetch(`${API_URL}/muhabbet/applications/${studentId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` }
         });
@@ -190,7 +191,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/applications/${editingApplication.id}`, {
+      const res = await fetch(`${API_URL}/muhabbet/applications/${editingApplication.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify(body)
@@ -202,7 +203,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
   const handleDeleteClass = async (classId) => {
     showConfirm('Bu sınıfı silmek istediğinize emin misiniz? İçindeki öğrenciler sınıfsız olarak boşa düşecektir!', async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/classes/${classId}`, {
+        const res = await fetch(`${API_URL}/muhabbet/classes/${classId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` }
         });
@@ -216,7 +217,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/classes/${editingClass.id}`, {
+      const res = await fetch(`${API_URL}/muhabbet/classes/${editingClass.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify(body)
@@ -228,7 +229,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
   const handleDeleteMenu = async (menuId) => {
     showConfirm('Menüyü silmek istediğinize emin misiniz?', async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/menus/${menuId}`, {
+        const res = await fetch(`${API_URL}/muhabbet/menus/${menuId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` }
         });
@@ -242,7 +243,7 @@ export default function MuhabbetAdminPanel({ allUsers }) {
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/menus/${editingMenu.id}`, {
+      const res = await fetch(`${API_URL}/muhabbet/menus/${editingMenu.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` },
         body: JSON.stringify(body)

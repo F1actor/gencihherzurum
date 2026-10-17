@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { API_URL } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -10,8 +11,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('gencihh_theme') || 'light');
   const [loadingScreen, setLoadingScreen] = useState(false);
-
-  const API_URL = 'http://localhost:5000/api';
 
   // Tema değiştirme işlevi
   useEffect(() => {

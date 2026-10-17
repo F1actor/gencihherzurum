@@ -5,7 +5,9 @@ const AppError = require('../core/errors/AppError');
  * Tüm next(err) çağrılarını merkezi olarak karşılar.
  */
 const errorMiddleware = (err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+  const isPayloadTooLarge = err.type === 'entity.too.large';
+  const isMulterError = err.name === 'MulterError';
+  const statusCode = err.statusCode || (isPayloadTooLarge ? 413 : isMulterError ? 400 : 500);
   const message = err.isOperational ? err.message : 'Sunucuda beklenmeyen bir hata oluştu.';
 
   if (process.env.NODE_ENV !== 'production') {

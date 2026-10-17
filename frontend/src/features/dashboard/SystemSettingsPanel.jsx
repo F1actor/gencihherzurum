@@ -13,11 +13,13 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
   const [announcements, setAnnouncements] = useState([]);
   const [champions, setChampions] = useState([]);
   const [unitHistory, setUnitHistory] = useState([]);
+  const [units, setUnits] = useState([]);
   
   // Form states
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '', targetUnit: '' });
   const [newChampion, setNewChampion] = useState({ month: new Date().toISOString().slice(0, 7), unit: '', presidentName: '', points: 0 });
   const [transferData, setTransferData] = useState({ oldUserId: '', newUserId: '', unit: '', reason: '' });
+  const [newUnitName, setNewUnitName] = useState('');
   
   const [presidents, setPresidents] = useState([]);
 
@@ -26,6 +28,7 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
     if (activeSubTab === 'announcements') fetchAnnouncements();
     if (activeSubTab === 'champions') fetchChampions();
     if (activeSubTab === 'transfer') fetchUnitHistory();
+    if (activeSubTab === 'units') fetchUnits();
   }, [activeSubTab]);
 
   const fetchPresidents = async () => {
@@ -59,6 +62,37 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
       const res = await fetchWithAuth('/system/unit-history');
       if (res.ok) setUnitHistory(await res.json());
     } catch (e) { console.error(e); }
+  };
+
+  const fetchUnits = async () => {
+    try {
+      const res = await fetchWithAuth('/system/units');
+      if (res.ok) setUnits(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCreateUnit = async (event) => {
+    event.preventDefault();
+    try {
+      const res = await fetchWithAuth('/system/units', { method: 'POST', body: JSON.stringify({ name: newUnitName }) });
+      const data = await res.json();
+      if (!res.ok) return showNotification(data.message || 'Birim oluşturulamadı.', 'error');
+      setNewUnitName('');
+      showNotification(data.message, 'success');
+      await Promise.all([fetchUnits(), loadDashboardData(false)]);
+    } catch (e) { showNotification('Birim oluşturulurken hata oluştu.', 'error'); }
+  };
+
+  const handleDeactivateUnit = (unit) => {
+    showConfirm(`${unit.name} birimini pasifleştirmek istiyor musunuz?`, async () => {
+      try {
+        const res = await fetchWithAuth(`/system/units/${unit.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) return showNotification(data.message || 'Birim pasifleştirilemedi.', 'error');
+        showNotification(data.message, 'success');
+        await Promise.all([fetchUnits(), loadDashboardData(false)]);
+      } catch (e) { showNotification('Birim güncellenirken hata oluştu.', 'error'); }
+    });
   };
 
   // --- ANNOUNCEMENT HANDLERS ---
@@ -167,7 +201,32 @@ export default function SystemSettingsPanel({ validUnits, loadDashboardData }) {
         <button className={`btn ${activeSubTab === 'transfer' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveSubTab('transfer')}>
           <ArrowRightLeft size={16} /> Birim Devri & Geçmiş
         </button>
+        <button className={`btn ${activeSubTab === 'units' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveSubTab('units')}>
+          <Plus size={16} /> Birimler
+        </button>
       </div>
+
+      {activeSubTab === 'units' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 2fr', gap: '2rem' }}>
+          <form className="card" onSubmit={handleCreateUnit} style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ margin: 0 }}>Yeni Birim</h3>
+            <label className="form-label">Birim adı</label>
+            <input required maxLength="100" className="form-control" value={newUnitName} onChange={event => setNewUnitName(event.target.value)} />
+            <button type="submit" className="btn btn-primary"><Plus size={16} /> Birim Ekle</button>
+          </form>
+          <div className="card" style={{ textAlign: 'left' }}>
+            <h3 style={{ marginTop: 0 }}>Aktif Birimler</h3>
+            {units.length === 0 ? <p className="text-muted">Henüz birim tanımlanmadı.</p> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {units.map(unit => <div key={unit.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <span>{unit.name}</span>
+                  <button type="button" className="btn btn-secondary" onClick={() => handleDeactivateUnit(unit)} style={{ color: '#dc2626' }}>Pasifleştir</button>
+                </div>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* DUYURULAR */}
       {activeSubTab === 'announcements' && (

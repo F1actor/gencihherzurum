@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Coffee, PlayCircle } from 'lucide-react';
+import { API_URL } from '../../shared/config/api';
 
 export default function MuhabbetPortal() {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/menus`)
+    fetch(`${API_URL}/muhabbet/menus`)
       .then(res => res.json())
       .then(data => {
         setMenus(data);

@@ -10,7 +10,8 @@ async function authenticateToken(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gencihh_erzurum_teakip_gizli_anahtar_2026');
+    if (!process.env.JWT_SECRET) throw new Error('JWT yapılandırması eksik.');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await query.get('SELECT id, fullName, email, role, assignedUnit, phoneNumber, isEmailVerified FROM users WHERE id = ?', [decoded.id]);
 
     if (!user) {

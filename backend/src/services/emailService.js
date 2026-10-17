@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const path = require('path');
 
 let transporter = null;
 
@@ -21,6 +20,9 @@ async function initTransporter() {
       auth: { user, pass }
     });
   } else {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Canlı ortamda SMTP yapılandırması zorunludur.');
+    }
     console.log('SMTP bilgileri eksik. Ethereal Test Mail sunucusu oluşturuluyor...');
     try {
       // Ethereal test hesabı oluştur
@@ -66,7 +68,6 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
       <div style="font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f7f9fa; padding: 40px 20px; text-align: center;">
         <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eef2f5;">
           <div style="background-color: #1b5e20; padding: 30px; color: #ffffff; text-align: center;">
-            <img src="cid:logo" alt="Genç İHH" style="width: 70px; height: 70px; border-radius: 50%; display: block; margin: 0 auto 15px auto; border: 2px solid #ffffff; background-color: #ffffff;" />
             <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">GENÇ İHH</h1>
             <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.8; font-weight: 500;">Erzurum Teşkilat Yönetim Portalı</p>
           </div>
@@ -90,12 +91,7 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
       from: process.env.SMTP_FROM || '"Genç İHH Erzurum" <no-reply@gencihh.org>',
       to: toEmail,
       subject,
-      html: emailHtml,
-      attachments: [{
-        filename: 'logo.jpg',
-        path: require('path').join(__dirname, '..', '..', 'uploads', 'gencihh.jpeg'),
-        cid: 'logo'
-      }]
+      html: emailHtml
     };
 
     if (mailTransporter) {
@@ -109,6 +105,7 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
     console.error('E-posta gönderme hatası:', error.message);
   }
   
+  if (process.env.NODE_ENV === 'production') return;
   console.log(`\n==============================================`);
   console.log(`[KONSOL MAİL LOGU] ${isReset ? 'ŞİFRE SIFIRLAMA' : 'DOĞRULAMA'}`);
   console.log(`Kullanıcı: ${fullName}`);

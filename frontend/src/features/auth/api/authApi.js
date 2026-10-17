@@ -3,7 +3,9 @@
  * Bileşenler doğrudan fetch çağırmaz, bu modülü kullanır.
  */
 
-const API_BASE = 'http://localhost:5000/api';
+import { API_URL } from '../../../shared/config/api';
+
+const API_BASE = API_URL;
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',

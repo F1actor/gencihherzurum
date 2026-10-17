@@ -39,9 +39,7 @@ function countDayOfWeekInPeriod(startDate, endDate, dayOfWeek) {
 
 // DB'den aktif ve rekabetçi birimleri dinamik çek
 async function getCompetitiveUnits() {
-  const rows = await query.all(
-    "SELECT name FROM units WHERE isActive = 1 AND name NOT IN ('İl Başkanı', 'Teşkilatlanma Başkanı', 'Yaz Okulu Hocası', 'Yaz Okulu Koordinatörü') ORDER BY id ASC"
-  );
+  const rows = await query.all('SELECT name FROM units WHERE isActive = 1 ORDER BY id ASC');
   return rows.map(r => r.name);
 }
 

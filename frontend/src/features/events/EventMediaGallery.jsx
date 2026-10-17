@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { useNotification } from '../../shared/context/NotificationContext';
+import { getAssetUrl } from '../../shared/config/api';
 
 export default function EventMediaGallery({ eventsGallery, setPreviewImage, onDeleteEvent }) {
   const [gallerySearch, setGallerySearch] = useState('');
@@ -109,7 +110,7 @@ export default function EventMediaGallery({ eventsGallery, setPreviewImage, onDe
                     <td style={{ padding: '10px 16px' }}>
                       {ev.proofImagePath ? (
                         <img
-                          src={`http://localhost:5000${ev.proofImagePath}`}
+                          src={getAssetUrl(ev.proofImagePath)}
                           alt="Kanıt"
                           style={{
                             width: '64px', height: '64px', objectFit: 'cover',

@@ -21,6 +21,7 @@ import AnnualReportPanel from '../reports/AnnualReportPanel';
 import PerformancePanel from '../reports/PerformancePanel';
 import MonthlyReportPanel from '../reports/MonthlyReportPanel';
 import MuhabbetAdminPanel from '../muhabbet/MuhabbetAdminPanel';
+import { API_URL, getAssetUrl } from '../../shared/config/api';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
   
   // İşlem Durumları
   const [selectedUnits, setSelectedUnits] = useState({}); // { userId: selectedUnit }
+  const [selectedRoles, setSelectedRoles] = useState({});
   const [newRoutine, setNewRoutine] = useState({ unit: '', title: '', dayOfWeek: '1' });
   const [activeLeaderboardTab, setActiveLeaderboardTab] = useState('weekly'); // 'weekly', 'monthly', 'overall'
   const [previewImage, setPreviewImage] = useState(null);
@@ -173,7 +175,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetchWithAuth('/admin/assign-unit', {
         method: 'POST',
-        body: JSON.stringify({ userId, unit })
+        body: JSON.stringify({ userId, unit, role: selectedRoles[userId] || 'UNIT_PRESIDENT' })
       });
       const data = await res.json();
       if (res.ok) {
@@ -218,7 +220,7 @@ export default function AdminDashboard() {
   const handleExportCSV = async () => {
     try {
       showNotification('Rapor hazırlanıyor, lütfen bekleyin...', 'info');
-      const response = await fetch(`http://localhost:5000/api/reports/export-csv`, {
+      const response = await fetch(`${API_URL}/reports/export-csv`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('gencihh_token')}` }
       });
       if (!response.ok) throw new Error('Rapor indirilemedi');
@@ -637,6 +639,16 @@ export default function AdminDashboard() {
                                   {validUnits.map(unit => (
                                     <option key={unit} value={unit}>{unit}</option>
                                   ))}
+                                </select>
+                                <select
+                                  value={selectedRoles[u.id] || 'UNIT_PRESIDENT'}
+                                  onChange={(e) => setSelectedRoles({ ...selectedRoles, [u.id]: e.target.value })}
+                                  className="form-control"
+                                  style={{ padding: '4px 8px', fontSize: '12px', marginTop: '6px' }}
+                                >
+                                  <option value="UNIT_PRESIDENT">Birim Başkanı</option>
+                                  <option value="MUHABBET_COORDINATOR">Yaz Okulu Koordinatörü</option>
+                                  <option value="MUHABBET_TEACHER">Yaz Okulu Hocası</option>
                                 </select>
                               </td>
                               <td style={{ padding: '12px 10px', textAlign: 'right' }}>
@@ -1261,7 +1273,7 @@ export default function AdminDashboard() {
             
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000', borderRadius: 'var(--radius-md)', marginBottom: '15px' }}>
               <img 
-                src={`http://localhost:5000${previewImage.url}`} 
+                src={getAssetUrl(previewImage.url)}
                 alt="Kanıt Önizleme" 
                 style={{
                   maxWidth: '100%',
@@ -1317,7 +1329,7 @@ export default function AdminDashboard() {
                 Kapat
               </button>
               <a
-                href={`http://localhost:5000${previewImage.url}`}
+                href={getAssetUrl(previewImage.url)}
                 download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                 target="_blank"
                 rel="noopener noreferrer"

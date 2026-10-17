@@ -2,13 +2,15 @@
  * Muhabbet API — Muhabbet Okulu fetch katmanı.
  */
 
+import { API_URL } from '../../../shared/config/api';
+
 export const fetchPortalInfoApi = async () => {
-  const res = await fetch('http://localhost:5000/api/muhabbet/portal-info');
+  const res = await fetch(`${API_URL}/muhabbet/portal-info`);
   return res.json();
 };
 
 export const applyApi = async (data) => {
-  const res = await fetch('http://localhost:5000/api/muhabbet/apply', {
+  const res = await fetch(`${API_URL}/muhabbet/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)

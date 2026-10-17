@@ -4,6 +4,8 @@ const systemController = require('./systemController');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
 
 router.use(authenticateToken);
+router.post('/units', requireRole('SUPER_ADMIN'), systemController.createUnit);
+router.delete('/units/:id', requireRole('SUPER_ADMIN'), systemController.deactivateUnit);
 
 // =======================
 // BİRİMLER (UNITS)

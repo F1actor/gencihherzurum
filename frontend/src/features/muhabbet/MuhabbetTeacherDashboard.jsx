@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { Calendar, Users, Phone, Save, CheckCircle } from 'lucide-react';
+import { API_URL } from '../../shared/config/api';
 
 export default function MuhabbetTeacherDashboard({ onBack }) {
   const { user, logout } = useAuth();
@@ -19,7 +20,7 @@ export default function MuhabbetTeacherDashboard({ onBack }) {
   const fetchClassData = async () => {
     try {
       const token = localStorage.getItem('gencihh_token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/my-class`, {
+      const res = await fetch(`${API_URL}/muhabbet/my-class`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -39,7 +40,7 @@ export default function MuhabbetTeacherDashboard({ onBack }) {
   const loadAttendance = async (classId, targetDate) => {
     try {
       const token = localStorage.getItem('gencihh_token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/attendance?classId=${classId}&date=${targetDate}`, {
+      const res = await fetch(`${API_URL}/muhabbet/attendance?classId=${classId}&date=${targetDate}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -76,7 +77,7 @@ export default function MuhabbetTeacherDashboard({ onBack }) {
       }));
 
       const token = localStorage.getItem('gencihh_token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/muhabbet/attendance`, {
+      const res = await fetch(`${API_URL}/muhabbet/attendance`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

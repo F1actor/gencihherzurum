@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, LogOut, CheckCircle, Clock, Calendar, History, Image as ImageIcon, X, Download, PlusCircle, Award, Loader, Moon, Sun, ListFilter } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
+import { getAssetUrl } from '../../shared/config/api';
 import logoImg from '../../assets/logo.jpg';
 import EventMediaGallery from '../events/EventMediaGallery';
 import MuhabbetTeacherDashboard from '../muhabbet/MuhabbetTeacherDashboard';
@@ -917,7 +918,7 @@ export default function UnitDashboard() {
                   <div style={{ display: 'flex', gap: '15px', flex: 1, overflow: 'hidden' }}>
                     {event.proofImagePath ? (
                       <img 
-                        src={`http://localhost:5000${event.proofImagePath}`} 
+                        src={getAssetUrl(event.proofImagePath)}
                         alt="Kanıt Görsel" 
                         style={{ width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} 
                       />
@@ -1117,7 +1118,7 @@ export default function UnitDashboard() {
             <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
               <div style={{ backgroundColor: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                 <img
-                  src={`http://localhost:5000${previewImage.url}`}
+                  src={getAssetUrl(previewImage.url)}
                   alt="Büyük Kanıt"
                   style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', display: 'block' }}
                 />
@@ -1163,7 +1164,7 @@ export default function UnitDashboard() {
                   Kapat
                 </button>
                 <a
-                  href={`http://localhost:5000${previewImage.url}`}
+                  href={getAssetUrl(previewImage.url)}
                   download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                   target="_blank"
                   rel="noopener noreferrer"

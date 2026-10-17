@@ -2,11 +2,10 @@ const cron = require('node-cron');
 const { query } = require('../config/database');
 const { sendWeeklySummaryEmail } = require('./emailService');
 
-const competitiveUnits = [
-  'Eğitim Başkanı', 'Üniversite Başkanı', 'Lise Başkanı', 'Ortaokul Başkanı',
-  'İHH Çocuk Başkanı', 'Tanıtım ve Medya Başkanı', 'Çalışan Gençlik Başkanı',
-  'Sosyal Faaliyet Başkanı', 'Proje - Fon Başkanı', 'Atom Başkanı'
-];
+async function getActiveUnits() {
+  const rows = await query.all('SELECT name FROM units WHERE isActive = 1 ORDER BY name ASC');
+  return rows.map(row => row.name);
+}
 
 // Pasiflik Kontrolü: 2 haftadır etkinlik girmeyen birimleri denetle
 async function checkUnitActivity() {
@@ -44,9 +43,7 @@ async function checkUnitActivity() {
       if (isInactive) {
         const warningMsg = `UYARI: ${president.assignedUnit} (${president.fullName}) son 2 haftadır (En son: ${lastDate || 'Hiç'}) sisteme etkinlik veya kanıt girişi yapmadı!`;
         
-        const dateQuery = require('../config/database').dbType === 'postgres' 
-          ? "createdAt::timestamptz >= NOW() - INTERVAL '1 day'" 
-          : "createdAt >= datetime('now', '-1 day')";
+        const dateQuery = "createdAt >= DATE_SUB(NOW(), INTERVAL 1 DAY)";
 
         const duplicateWarning = await query.get(
           `SELECT id FROM audits WHERE logType = 'WARNING' AND message = ? AND ${dateQuery}`,
@@ -96,9 +93,7 @@ async function calculateMonthlyChampion() {
 
     if (champion && champion.points > 0) {
       // Champions tablosuna kaydet
-      const insertSql = require('../config/database').dbType === 'postgres'
-        ? `INSERT INTO champions (month, unit, presidentName, points) VALUES (?, ?, ?, ?) RETURNING id`
-        : `INSERT INTO champions (month, unit, presidentName, points) VALUES (?, ?, ?, ?)`;
+      const insertSql = `INSERT INTO champions (month, unit, presidentName, points) VALUES (?, ?, ?, ?)`;
       await query.run(insertSql, [prevMonthStr, champion.unit, champion.presidentName || 'Bilinmiyor', champion.points]);
 
       const championMsg = `🏆 ÖDÜL: ${champion.unit}, ${champion.points} puan toplayarak ${prevMonthName} ayının şampiyonu olmuştur!`;
@@ -133,7 +128,8 @@ async function sendWeeklySummary() {
     );
 
     const activeUnits = weeklyData.filter(u => u.points > 0).map(u => u.unit);
-    const inactiveUnits = competitiveUnits.filter(u => !activeUnits.includes(u));
+    const configuredUnits = await getActiveUnits();
+    const inactiveUnits = configuredUnits.filter(u => !activeUnits.includes(u));
     const topUnit = weeklyData.sort((a, b) => b.points - a.points)[0]?.unit || null;
 
     await sendWeeklySummaryEmail(admin.email, {

@@ -81,8 +81,23 @@ exports.createMenu = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.updateMenu = async (req, res, next) => {
+  try {
+    await muhabbetService.updateMenu(req.params.id, req.body);
+    return res.json({ message: 'Menü güncellendi.' });
+  } catch (err) { next(err); }
+};
+
+exports.deleteMenu = async (req, res, next) => {
+  try {
+    await muhabbetService.deleteMenu(req.params.id);
+    return res.json({ message: 'Menü silindi.' });
+  } catch (err) { next(err); }
+};
+
 exports.getAttendance = async (req, res, next) => {
   try {
+    await muhabbetService.assertClassAccess(req.user, req.query.classId);
     const data = await muhabbetService.getAttendance(req.query);
     return res.json(data);
   } catch (err) { next(err); }
@@ -90,6 +105,7 @@ exports.getAttendance = async (req, res, next) => {
 
 exports.saveAttendance = async (req, res, next) => {
   try {
+    await muhabbetService.assertClassAccess(req.user, req.body.classId);
     await muhabbetService.saveAttendance(req.body);
     return res.json({ message: 'Yoklama kaydedildi.' });
   } catch (err) { next(err); }

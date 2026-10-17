@@ -1,13 +1,6 @@
 const { query } = require('../../config/database');
 const AppError = require('../../core/errors/AppError');
 
-const ROLE_MAP = {
-  'İl Başkanı': 'SUPER_ADMIN',
-  'Teşkilatlanma Başkanı': 'SUPER_ADMIN',
-  'Yaz Okulu Koordinatörü': 'MUHABBET_COORDINATOR',
-  'Yaz Okulu Hocası': 'MUHABBET_TEACHER'
-};
-
 /**
  * Admin Service — Admin paneli iş mantığı katmanı.
  */
@@ -29,17 +22,20 @@ exports.getUsers = async () => {
   );
 };
 
-exports.assignUnit = async ({ userId, unit, requesterId }) => {
+exports.assignUnit = async ({ userId, unit, role = 'UNIT_PRESIDENT' }) => {
   const validUnits = await exports.getActiveUnits();
   if (!validUnits.includes(unit)) throw new AppError('Geçersiz bir birim seçtiniz.', 400);
 
   const user = await query.get('SELECT * FROM users WHERE id = ?', [userId]);
   if (!user) throw new AppError('Kullanıcı bulunamadı.', 404);
 
-  const existingPresident = await query.get('SELECT fullName FROM users WHERE assignedUnit = ?', [unit]);
-  const assignedRole = ROLE_MAP[unit] || 'UNIT_PRESIDENT';
+  const existingPresident = await query.get('SELECT fullName FROM users WHERE assignedUnit = ? AND id != ?', [unit, userId]);
+  const allowedRoles = ['UNIT_PRESIDENT', 'MUHABBET_COORDINATOR', 'MUHABBET_TEACHER'];
+  const assignedRole = allowedRoles.includes(role) ? role : 'UNIT_PRESIDENT';
 
   await query.run('UPDATE users SET role = ?, assignedUnit = ? WHERE id = ?', [assignedRole, unit, userId]);
+  await query.run('UPDATE unit_history SET endDate = ? WHERE userId = ? AND endDate IS NULL', [new Date().toISOString(), userId]);
+  await query.run('INSERT INTO unit_history (unit, userId, fullName, startDate, reason) VALUES (?, ?, ?, ?, ?)', [unit, userId, user.fullName, new Date().toISOString(), 'Yönetici ataması']);
 
   await query.run(
     "INSERT INTO audits (logType, message) VALUES ('SYSTEM', ?)",

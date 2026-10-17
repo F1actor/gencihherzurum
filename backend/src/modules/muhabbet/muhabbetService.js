@@ -1,4 +1,4 @@
-const { query, dbType } = require('../../config/database');
+const { query } = require('../../config/database');
 const AppError = require('../../core/errors/AppError');
 
 /**
@@ -6,11 +6,7 @@ const AppError = require('../../core/errors/AppError');
  */
 
 exports.checkApplicationsOpen = async () => {
-  const settings = await query.get(
-    dbType === 'postgres'
-      ? "SELECT settingValue, settingvalue FROM muhabbet_settings WHERE LOWER(settingKey) = 'isapplicationsopen'"
-      : "SELECT settingValue FROM muhabbet_settings WHERE settingKey = 'isApplicationsOpen'"
-  );
+  const settings = await query.get("SELECT settingValue FROM muhabbet_settings WHERE LOWER(settingKey) = 'isapplicationsopen'");
   if (settings) {
     const val = settings.settingValue ?? settings.settingvalue;
     if (val === 'false' || val === '0') throw new AppError('Başvurular şu anda kapalıdır.', 400);
@@ -19,9 +15,7 @@ exports.checkApplicationsOpen = async () => {
 
 exports.createApplication = async ({ childName, parentName, address, phoneNumber, grade }) => {
   await exports.checkApplicationsOpen();
-  const insertSql = dbType === 'postgres'
-    ? `INSERT INTO muhabbet_students (childName, parentName, address, phoneNumber, grade) VALUES (?, ?, ?, ?, ?) RETURNING id`
-    : `INSERT INTO muhabbet_students (childName, parentName, address, phoneNumber, grade) VALUES (?, ?, ?, ?, ?)`;
+  const insertSql = 'INSERT INTO muhabbet_students (childName, parentName, address, phoneNumber, grade) VALUES (?, ?, ?, ?, ?)';
   return query.run(insertSql, [childName, parentName, address, phoneNumber, grade]);
 };
 
@@ -53,10 +47,15 @@ exports.getMyClass = async (teacherId) => {
   return { classInfo: classData, students };
 };
 
+exports.assertClassAccess = async (user, classId) => {
+  if (['SUPER_ADMIN', 'MUHABBET_COORDINATOR'].includes(user.role)) return;
+  if (user.role !== 'MUHABBET_TEACHER') throw new AppError('Bu sınıfa erişim yetkiniz yok.', 403);
+  const classData = await query.get('SELECT id FROM muhabbet_classes WHERE id = ? AND teacherId = ?', [classId, user.id]);
+  if (!classData) throw new AppError('Bu sınıfa erişim yetkiniz yok.', 403);
+};
+
 exports.createClass = async ({ name, ageGroup, teacherId }) => {
-  const insertSql = dbType === 'postgres'
-    ? `INSERT INTO muhabbet_classes (name, ageGroup, teacherId) VALUES (?, ?, ?) RETURNING id`
-    : `INSERT INTO muhabbet_classes (name, ageGroup, teacherId) VALUES (?, ?, ?)`;
+  const insertSql = 'INSERT INTO muhabbet_classes (name, ageGroup, teacherId) VALUES (?, ?, ?)';
   await query.run(insertSql, [name, ageGroup, teacherId || null]);
   if (teacherId) {
     await query.run("UPDATE users SET role = 'MUHABBET_TEACHER', assignedUnit = 'Yaz Okulu Hocası' WHERE id = ? AND role != 'SUPER_ADMIN'", [teacherId]);
@@ -96,10 +95,21 @@ exports.getMenus = async () => {
 };
 
 exports.createMenu = async ({ menuDate, foodItems, activities }) => {
-  const insertSql = dbType === 'postgres'
-    ? `INSERT INTO muhabbet_menus (menuDate, foodItems, activities) VALUES (?, ?, ?) RETURNING id`
-    : `INSERT INTO muhabbet_menus (menuDate, foodItems, activities) VALUES (?, ?, ?)`;
+  if (!menuDate || !foodItems || !activities) throw new AppError('Menü tarihi, yemek ve etkinlik alanları zorunludur.', 400);
+  const insertSql = 'INSERT INTO muhabbet_menus (menuDate, foodItems, activities) VALUES (?, ?, ?)';
   return query.run(insertSql, [menuDate, foodItems, activities]);
+};
+
+exports.updateMenu = async (id, { menuDate, foodItems, activities }) => {
+  if (!menuDate || !foodItems || !activities) throw new AppError('Menü tarihi, yemek ve etkinlik alanları zorunludur.', 400);
+  const menu = await query.get('SELECT id FROM muhabbet_menus WHERE id = ?', [id]);
+  if (!menu) throw new AppError('Menü bulunamadı.', 404);
+  await query.run('UPDATE muhabbet_menus SET menuDate = ?, foodItems = ?, activities = ? WHERE id = ?', [menuDate, foodItems, activities, id]);
+};
+
+exports.deleteMenu = async (id) => {
+  const result = await query.run('DELETE FROM muhabbet_menus WHERE id = ?', [id]);
+  if (result.changes === 0) throw new AppError('Menü bulunamadı.', 404);
 };
 
 exports.getAttendance = async ({ classId, attendanceDate, date }) => {
@@ -115,9 +125,7 @@ exports.saveAttendance = async ({ classId, attendanceDate, date, attendanceList,
     const studentId = entry.studentId || entry.id;
     const isPresent = (entry.isPresent === 1 || entry.isPresent === true || entry.status === 'Geldi') ? 1 : 0;
     if (studentId) {
-      const insertSql = dbType === 'postgres'
-        ? `INSERT INTO muhabbet_attendance (studentId, classId, attendanceDate, isPresent) VALUES (?, ?, ?, ?) RETURNING id`
-        : `INSERT INTO muhabbet_attendance (studentId, classId, attendanceDate, isPresent) VALUES (?, ?, ?, ?)`;
+      const insertSql = 'INSERT INTO muhabbet_attendance (studentId, classId, attendanceDate, isPresent) VALUES (?, ?, ?, ?)';
       await query.run(insertSql, [studentId, classId, targetDate, isPresent]);
     }
   }
@@ -178,24 +186,12 @@ exports.updateSetting = async (body) => {
   }
 
   for (const { key, value } of pairs) {
-    const existing = await query.get(
-      dbType === 'postgres' 
-        ? 'SELECT id FROM muhabbet_settings WHERE LOWER(settingKey) = LOWER(?)'
-        : 'SELECT id FROM muhabbet_settings WHERE settingKey = ?',
-      [key]
-    );
+    const existing = await query.get('SELECT id FROM muhabbet_settings WHERE LOWER(settingKey) = LOWER(?)', [key]);
 
     if (existing) {
-      await query.run(
-        dbType === 'postgres'
-          ? 'UPDATE muhabbet_settings SET settingValue = ? WHERE LOWER(settingKey) = LOWER(?)'
-          : 'UPDATE muhabbet_settings SET settingValue = ? WHERE settingKey = ?',
-        [value, key]
-      );
+      await query.run('UPDATE muhabbet_settings SET settingValue = ? WHERE LOWER(settingKey) = LOWER(?)', [value, key]);
     } else {
-      const insertSql = dbType === 'postgres'
-        ? `INSERT INTO muhabbet_settings (settingKey, settingValue) VALUES (?, ?) RETURNING id`
-        : `INSERT INTO muhabbet_settings (settingKey, settingValue) VALUES (?, ?)`;
+      const insertSql = 'INSERT INTO muhabbet_settings (settingKey, settingValue) VALUES (?, ?)';
       await query.run(insertSql, [key, value]);
     }
   }

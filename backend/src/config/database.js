@@ -1,444 +1,180 @@
-const sqlite3 = require('sqlite3').verbose();
-const { Pool } = require('pg');
-const path = require('path');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
-const dbType = process.env.DB_TYPE || 'sqlite'; // 'sqlite' veya 'postgres'
-let dbSqlite = null;
-let pgPool = null;
+const dbType = 'mysql';
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Veritabanı bağlantı ilklendirmesi
-if (dbType === 'postgres') {
-  console.log('PostgreSQL bağlantı havuzu oluşturuluyor...');
-  pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+function getConnectionConfig() {
+  if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    if (!['mysql:', 'mysqls:'].includes(url.protocol)) throw new Error('DATABASE_URL MySQL URI olmalıdır.');
+    return {
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+      ssl: url.protocol === 'mysqls:' || process.env.DB_SSL === 'true'
+        ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : undefined
+    };
+  }
+
+  const required = ['DB_HOST', 'DB_USER', 'DB_NAME'];
+  const missing = required.filter(key => !process.env[key]);
+  if (missing.length) throw new Error(`MySQL yapılandırması eksik: ${missing.join(', ')}`);
+  return {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
-  });
-} else {
-  console.log('SQLite veritabanı dosyası yükleniyor...');
-  const dbPath = path.join(__dirname, '..', 'database.sqlite');
-  dbSqlite = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('SQLite veritabanına bağlanılamadı:', err.message);
-    } else {
-      console.log('SQLite veritabanı bağlantısı başarılı.');
-    }
-  });
+    ssl: process.env.DB_SSL === 'true'
+      ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+      : undefined
+  };
 }
 
-// SQL ve parametre dönüştürücü (SQLite -> PostgreSQL uyumluluğu)
-function convertQuery(sql, params = []) {
-  if (dbType !== 'postgres') {
-    return { sql, params };
-  }
-
-  // 1. Soru işaretlerini ($1, $2...) formatına çevir
-  let paramCount = 0;
-  let postgresSql = sql.replace(/\?/g, () => {
-    paramCount++;
-    return `$${paramCount}`;
-  });
-
-  // 2. Tablo oluşturma komutlarındaki uyumsuzlukları gider
-  postgresSql = postgresSql.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY');
-  postgresSql = postgresSql.replace(/datetime\('now',\s*'-1\s+day'\)/gi, "NOW() - INTERVAL '1 day'");
-  postgresSql = postgresSql.replace(/datetime\('now',\s*'-14\s+days'\)/gi, "NOW() - INTERVAL '14 days'");
-
-  return { sql: postgresSql, params };
+if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error('Canlı ortamda en az 32 karakterlik JWT_SECRET zorunludur.');
 }
 
-function normalizeRow(row) {
-  if (!row || dbType !== 'postgres') return row;
-  const newRow = {};
-  for (const key in row) {
-    let newKey = key;
-    if (key === 'fullname') newKey = 'fullName';
-    else if (key === 'passwordhash') newKey = 'passwordHash';
-    else if (key === 'assignedunit') newKey = 'assignedUnit';
-    else if (key === 'isemailverified') newKey = 'isEmailVerified';
-    else if (key === 'otpcode') newKey = 'otpCode';
-    else if (key === 'otpexpiresat') newKey = 'otpExpiresAt';
-    else if (key === 'createdat') newKey = 'createdAt';
-    else if (key === 'routineid') newKey = 'routineId';
-    else if (key === 'userid') newKey = 'userId';
-    else if (key === 'eventdate') newKey = 'eventDate';
-    else if (key === 'proofimagepath') newKey = 'proofImagePath';
-    else if (key === 'pointsearned') newKey = 'pointsEarned';
-    else if (key === 'logtype') newKey = 'logType';
-    else if (key === 'dayofweek') newKey = 'dayOfWeek';
-    else if (key === 'presidentname') newKey = 'presidentName';
-    else if (key === 'phonenumber') newKey = 'phoneNumber';
-    else if (key === 'targetunit') newKey = 'targetUnit';
-    else if (key === 'isactive') newKey = 'isActive';
-    else if (key === 'startdate') newKey = 'startDate';
-    else if (key === 'enddate') newKey = 'endDate';
-    else if (key === 'routinetarget') newKey = 'routineTarget';
-    else if (key === 'extratarget') newKey = 'extraTarget';
-    else if (key === 'presidentemail') newKey = 'presidentEmail';
-    else if (key === 'routinetitle') newKey = 'routineTitle';
-    else if (key === 'targetname') newKey = 'targetName';
-    else if (key === 'targetpoints') newKey = 'targetPoints';
-    else if (key === 'targetid') newKey = 'targetId';
-    else if (key === 'childname') newKey = 'childName';
-    else if (key === 'parentname') newKey = 'parentName';
-    else if (key === 'classid') newKey = 'classId';
-    else if (key === 'teacherid') newKey = 'teacherId';
-    else if (key === 'agegroup') newKey = 'ageGroup';
-    else if (key === 'menudate') newKey = 'menuDate';
-    else if (key === 'fooditems') newKey = 'foodItems';
-    else if (key === 'studentid') newKey = 'studentId';
-    else if (key === 'attendancedate') newKey = 'attendanceDate';
-    else if (key === 'ispresent') newKey = 'isPresent';
-    else if (key === 'settingkey') newKey = 'settingKey';
-    else if (key === 'settingvalue') newKey = 'settingValue';
-    
-    newRow[newKey] = row[key];
-  }
-  return newRow;
-}
-
+const pool = mysql.createPool({
+  ...getConnectionConfig(),
+  waitForConnections: true,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+  queueLimit: 0,
+  charset: 'utf8mb4'
+});
 
 const query = {
   async run(sql, params = []) {
-    let converted = convertQuery(sql, params);
-    
-    if (dbType === 'postgres') {
-      const isInsert = converted.sql.trim().toUpperCase().startsWith('INSERT');
-      if (isInsert && !converted.sql.toUpperCase().includes('RETURNING')) {
-        converted.sql += ' RETURNING id';
-      }
-      
-      const res = await pgPool.query(converted.sql, converted.params);
-      let lastID = null;
-      if (isInsert && res.rows && res.rows.length > 0 && res.rows[0].id) {
-        lastID = res.rows[0].id;
-      }
-      return { id: lastID, changes: res.rowCount };
-    } else {
-      return new Promise((resolve, reject) => {
-        dbSqlite.run(converted.sql, converted.params, function (err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, changes: this.changes });
-        });
-      });
-    }
+    const [result] = await pool.execute(sql, params);
+    return { id: result.insertId || null, changes: result.affectedRows || 0 };
   },
-
   async get(sql, params = []) {
-    const converted = convertQuery(sql, params);
-
-    if (dbType === 'postgres') {
-      const res = await pgPool.query(converted.sql, converted.params);
-      return normalizeRow(res.rows[0]) || null;
-    } else {
-      return new Promise((resolve, reject) => {
-        dbSqlite.get(converted.sql, converted.params, (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
-    }
+    const [rows] = await pool.execute(sql, params);
+    return rows[0] || null;
   },
-
   async all(sql, params = []) {
-    const converted = convertQuery(sql, params);
-
-    if (dbType === 'postgres') {
-      const res = await pgPool.query(converted.sql, converted.params);
-      return res.rows.map(normalizeRow);
-    } else {
-      return new Promise((resolve, reject) => {
-        dbSqlite.all(converted.sql, converted.params, (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-      });
-    }
+    const [rows] = await pool.execute(sql, params);
+    return rows;
   }
 };
+
+async function ensureColumn(tableName, columnName, definition) {
+  const column = await query.get(
+    'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+    [tableName, columnName]
+  );
+  if (!column) await query.run(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`);
+}
+
+async function ensureIndex(tableName, indexName, columns) {
+  const index = await query.get(
+    'SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
+    [tableName, indexName]
+  );
+  if (!index) await query.run(`CREATE INDEX \`${indexName}\` ON \`${tableName}\` (${columns})`);
+}
 
 async function initDatabase() {
   try {
-    // 1. Users Tablosu
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        fullName TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        passwordHash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'PENDING',
-        assignedUnit TEXT,
-        phoneNumber TEXT,
-        isEmailVerified INTEGER DEFAULT 0,
-        otpCode TEXT,
-        otpExpiresAt TEXT,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    await pool.query('SELECT 1');
 
-    // Migration: Add phoneNumber column to users if it doesn't exist
-    try {
-      if (dbType === 'postgres') {
-        await query.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS phoneNumber TEXT');
-      } else {
-        await query.run('ALTER TABLE users ADD COLUMN phoneNumber TEXT');
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY, fullName VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL UNIQUE,
+        passwordHash VARCHAR(255) NOT NULL, role VARCHAR(50) NOT NULL DEFAULT 'PENDING', assignedUnit VARCHAR(255) NULL,
+        phoneNumber VARCHAR(50) NULL, isEmailVerified TINYINT(1) NOT NULL DEFAULT 0, otpCode VARCHAR(20) NULL,
+        otpExpiresAt VARCHAR(64) NULL, resetOtpCode VARCHAR(20) NULL, resetOtpExpiresAt VARCHAR(64) NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS units (
+        id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, isActive TINYINT(1) NOT NULL DEFAULT 1,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS routines (
+        id INT AUTO_INCREMENT PRIMARY KEY, unit VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, dayOfWeek TINYINT NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS events (
+        id INT AUTO_INCREMENT PRIMARY KEY, userId INT NOT NULL, unit VARCHAR(255) NOT NULL, type VARCHAR(30) NOT NULL,
+        routineId INT NULL, targetId INT NULL, title VARCHAR(255) NOT NULL, description TEXT NULL, eventDate VARCHAR(10) NOT NULL,
+        proofImagePath VARCHAR(500) NULL, pointsEarned INT NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'APPROVED',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS audits (
+        id INT AUTO_INCREMENT PRIMARY KEY, logType VARCHAR(50) NOT NULL, message TEXT NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS unit_history (
+        id INT AUTO_INCREMENT PRIMARY KEY, unit VARCHAR(255) NOT NULL, userId INT NULL, fullName VARCHAR(255) NOT NULL,
+        startDate VARCHAR(64) NOT NULL, endDate VARCHAR(64) NULL, reason VARCHAR(255) NOT NULL DEFAULT 'İlk Atama',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS announcements (
+        id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL, body TEXT NOT NULL, targetUnit VARCHAR(255) NULL,
+        isActive TINYINT(1) NOT NULL DEFAULT 1, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS targets (
+        id INT AUTO_INCREMENT PRIMARY KEY, unit VARCHAR(255) NOT NULL, month VARCHAR(7) NOT NULL, routineTarget INT NOT NULL DEFAULT 0,
+        extraTarget INT NOT NULL DEFAULT 0, targetName VARCHAR(255) NULL, targetPoints INT NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS champions (
+        id INT AUTO_INCREMENT PRIMARY KEY, month VARCHAR(7) NOT NULL, unit VARCHAR(255) NOT NULL, presidentName VARCHAR(255) NULL,
+        points INT NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS muhabbet_students (
+        id INT AUTO_INCREMENT PRIMARY KEY, childName VARCHAR(255) NOT NULL, parentName VARCHAR(255) NOT NULL, address TEXT NOT NULL,
+        phoneNumber VARCHAR(50) NOT NULL, grade VARCHAR(100) NOT NULL, classId INT NULL, status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS muhabbet_classes (
+        id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, ageGroup VARCHAR(100) NULL, teacherId INT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS muhabbet_menus (
+        id INT AUTO_INCREMENT PRIMARY KEY, menuDate VARCHAR(10) NOT NULL, foodItems TEXT NOT NULL, activities TEXT NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS muhabbet_attendance (
+        id INT AUTO_INCREMENT PRIMARY KEY, studentId INT NOT NULL, classId INT NOT NULL, attendanceDate VARCHAR(10) NOT NULL,
+        isPresent TINYINT(1) NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS muhabbet_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY, settingKey VARCHAR(100) NOT NULL UNIQUE, settingValue TEXT NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+    ];
+    for (const sql of tables) await query.run(sql);
+
+    await ensureColumn('users', 'phoneNumber', 'VARCHAR(50) NULL');
+    await ensureColumn('users', 'resetOtpCode', 'VARCHAR(20) NULL');
+    await ensureColumn('users', 'resetOtpExpiresAt', 'VARCHAR(64) NULL');
+    await ensureColumn('events', 'status', "VARCHAR(30) NOT NULL DEFAULT 'APPROVED'");
+    await ensureColumn('events', 'targetId', 'INT NULL');
+    await ensureColumn('targets', 'targetName', 'VARCHAR(255) NULL');
+    await ensureColumn('targets', 'targetPoints', 'INT NOT NULL DEFAULT 0');
+    await ensureIndex('events', 'idx_events_user_date', '`userId`, `eventDate`');
+    await ensureIndex('events', 'idx_events_unit_date', '`unit`, `eventDate`');
+    await ensureIndex('muhabbet_attendance', 'idx_attendance_class_date', '`classId`, `attendanceDate`');
+
+    const adminExists = await query.get("SELECT id FROM users WHERE role = 'SUPER_ADMIN' LIMIT 1");
+    if (!adminExists && process.env.ALLOW_BOOTSTRAP_ADMIN === 'true') {
+      const { BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD } = process.env;
+      if (!BOOTSTRAP_ADMIN_NAME || !BOOTSTRAP_ADMIN_EMAIL || !BOOTSTRAP_ADMIN_PASSWORD || BOOTSTRAP_ADMIN_PASSWORD.length < 12) {
+        throw new Error('Bootstrap admin için ad, e-posta ve en az 12 karakterli parola zorunludur.');
       }
-    } catch (migErr) {
-      // Ignore if column already exists
+      const passwordHash = await bcrypt.hash(BOOTSTRAP_ADMIN_PASSWORD, 12);
+      await query.run("INSERT INTO users (fullName, email, passwordHash, role, isEmailVerified) VALUES (?, ?, ?, 'SUPER_ADMIN', 1)", [BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_EMAIL.toLowerCase(), passwordHash]);
+      console.log('Bootstrap süper admin oluşturuldu. ALLOW_BOOTSTRAP_ADMIN değerini kapatın.');
     }
-
-    // 2. Routines Tablosu
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS routines (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        unit TEXT NOT NULL,
-        title TEXT NOT NULL,
-        dayOfWeek INTEGER NOT NULL,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 3. Events Tablosu
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS events (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        userId INTEGER NOT NULL,
-        unit TEXT NOT NULL,
-        type TEXT NOT NULL,
-        routineId INTEGER,
-        title TEXT NOT NULL,
-        description TEXT,
-        eventDate TEXT NOT NULL,
-        proofImagePath TEXT,
-        pointsEarned INTEGER NOT NULL,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 4. Audits Tablosu
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS audits (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        logType TEXT NOT NULL,
-        message TEXT NOT NULL,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 5. Unit History Tablosu (Başkan değişikliği geçmişi)
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS unit_history (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        unit TEXT NOT NULL,
-        userId INTEGER,
-        fullName TEXT NOT NULL,
-        startDate TEXT NOT NULL,
-        endDate TEXT,
-        reason TEXT DEFAULT 'İlk Atama',
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 6. Announcements Tablosu (Duyurular)
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS announcements (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        title TEXT NOT NULL,
-        body TEXT NOT NULL,
-        targetUnit TEXT,
-        isActive INTEGER DEFAULT 1,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 7. Targets Tablosu (Aylık Hedefler)
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS targets (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        unit TEXT NOT NULL,
-        month TEXT NOT NULL,
-        routineTarget INTEGER DEFAULT 0,
-        extraTarget INTEGER DEFAULT 0,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 8. Champions Tablosu (Geçmiş Şampiyonlar)
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS champions (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        month TEXT NOT NULL,
-        unit TEXT NOT NULL,
-        presidentName TEXT,
-        points INTEGER DEFAULT 0,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Migration: events tablosuna status kolonu ekle
-    try {
-      if (dbType === 'postgres') {
-        await query.run("ALTER TABLE events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'APPROVED'");
-      } else {
-        await query.run("ALTER TABLE events ADD COLUMN status TEXT DEFAULT 'APPROVED'");
-      }
-    } catch (e) { /* ignore if exists */ }
-
-    // Migration: users tablosuna resetOtp ve resetOtpExpiresAt ekle
-    try {
-      if (dbType === 'postgres') {
-        await query.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS resetOtpCode TEXT');
-        await query.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS resetOtpExpiresAt TEXT');
-      } else {
-        await query.run('ALTER TABLE users ADD COLUMN resetOtpCode TEXT');
-        await query.run('ALTER TABLE users ADD COLUMN resetOtpExpiresAt TEXT');
-      }
-    } catch (e) { /* ignore if exists */ }
-
-    // Migration: targets tablosuna targetName ve targetPoints ekle
-    try {
-      if (dbType === 'postgres') {
-        await query.run('ALTER TABLE targets ADD COLUMN IF NOT EXISTS targetName TEXT');
-        await query.run('ALTER TABLE targets ADD COLUMN IF NOT EXISTS targetPoints INTEGER DEFAULT 0');
-      } else {
-        await query.run('ALTER TABLE targets ADD COLUMN targetName TEXT');
-        await query.run('ALTER TABLE targets ADD COLUMN targetPoints INTEGER DEFAULT 0');
-      }
-    } catch (e) { /* ignore if exists */ }
-
-    // Migration: events tablosuna targetId ekle
-    try {
-      if (dbType === 'postgres') {
-        await query.run('ALTER TABLE events ADD COLUMN IF NOT EXISTS targetId INTEGER');
-      } else {
-        await query.run('ALTER TABLE events ADD COLUMN targetId INTEGER');
-      }
-    } catch (e) { /* ignore if exists */ }
-
-    // --- MUHABBET OKULU TABLOLARI ---
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS muhabbet_students (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        childName TEXT NOT NULL,
-        parentName TEXT NOT NULL,
-        address TEXT NOT NULL,
-        phoneNumber TEXT NOT NULL,
-        grade TEXT NOT NULL,
-        classId INTEGER,
-        status TEXT DEFAULT 'PENDING',
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS muhabbet_classes (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        name TEXT NOT NULL,
-        ageGroup TEXT,
-        teacherId INTEGER,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS muhabbet_menus (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        menuDate TEXT NOT NULL,
-        foodItems TEXT NOT NULL,
-        activities TEXT NOT NULL,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS muhabbet_attendance (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        studentId INTEGER NOT NULL,
-        classId INTEGER NOT NULL,
-        attendanceDate TEXT NOT NULL,
-        isPresent INTEGER DEFAULT 0,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS muhabbet_settings (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        settingKey TEXT NOT NULL UNIQUE,
-        settingValue TEXT NOT NULL,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await query.run(`
-      CREATE TABLE IF NOT EXISTS units (
-        id ${dbType === 'postgres' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        name TEXT NOT NULL UNIQUE,
-        isActive INTEGER DEFAULT 1,
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    // --- SEEDING ---
-    const adminExists = await query.get("SELECT * FROM users WHERE role = 'SUPER_ADMIN'");
-    if (!adminExists) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('admin123', salt);
-      
-      // PostgreSQL'de INSERT atarken id dönsün diye RETURNING ekliyoruz
-      const insertSql = dbType === 'postgres' 
-        ? `INSERT INTO users (fullName, email, passwordHash, role, isEmailVerified) 
-           VALUES (?, ?, ?, 'SUPER_ADMIN', 1) RETURNING id`
-        : `INSERT INTO users (fullName, email, passwordHash, role, isEmailVerified) 
-           VALUES (?, ?, ?, 'SUPER_ADMIN', 1)`;
-
-      await query.run(insertSql, ['Genç İHH Teşkilat Başkanı', 'admin@gencihh.org', hashedPassword]);
-      console.log('Varsayılan Süper Admin oluşturuldu (admin@gencihh.org / admin123).');
-    }
-
-
-
-    const unitsCount = await query.get("SELECT COUNT(*) as count FROM units");
-    const countUnitsVal = unitsCount.count !== undefined ? parseInt(unitsCount.count) : parseInt(unitsCount.countVal || 0);
-
-    if (countUnitsVal === 0) {
-      const defaultUnits = [
-        'İl Başkanı',
-        'Teşkilatlanma Başkanı',
-        'Eğitim Başkanı',
-        'Üniversite Başkanı',
-        'Lise Başkanı',
-        'Ortaokul Başkanı',
-        'İHH Çocuk Başkanı',
-        'Tanıtım ve Medya Başkanı',
-        'Çalışan Gençlik Başkanı',
-        'Sosyal Faaliyet Başkanı',
-        'Proje - Fon Başkanı',
-        'Atom Başkanı',
-        'Yaz Okulu Hocası',
-        'Yaz Okulu Koordinatörü'
-      ];
-
-      for (const u of defaultUnits) {
-        const insertSql = dbType === 'postgres'
-          ? `INSERT INTO units (name) VALUES (?) RETURNING id`
-          : `INSERT INTO units (name) VALUES (?)`;
-        await query.run(insertSql, [u]);
-      }
-      console.log('Varsayılan birimler (units) veritabanına eklendi.');
-    }
-
   } catch (error) {
-    console.error('Veritabanı ilklendirilirken hata oluştu:', error);
+    console.error('MySQL veritabanı ilklendirilirken hata oluştu:', error);
+    throw error;
   }
 }
 
-module.exports = {
-  query,
-  initDatabase,
-  dbType
-};
+module.exports = { query, initDatabase, dbType, pool };

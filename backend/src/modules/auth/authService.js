@@ -70,9 +70,10 @@ exports.loginUser = async ({ email, password }) => {
     throw err;
   }
 
+  if (!process.env.JWT_SECRET) throw new AppError('Oturum yapılandırması eksik.', 503);
   const token = jwt.sign(
     { id: user.id, role: user.role, assignedUnit: user.assignedUnit },
-    process.env.JWT_SECRET || 'gencihh_erzurum_teakip_gizli_anahtar_2026',
+    process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
 

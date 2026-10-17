@@ -3,6 +3,7 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { Lock, Mail, Loader } from 'lucide-react';
 import AuthLayout from './AuthLayout';
+import { API_URL } from '../../shared/config/api';
 
 export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const { login, setLoadingScreen } = useAuth();
@@ -25,7 +26,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
     try {
       if (resetMode) {
         // Şifre Sıfırlama Onayı
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
+        const res = await fetch(`${API_URL}/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, otp, newPassword })
@@ -40,7 +41,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
         }
       } else if (forgotMode) {
         // Şifre Sıfırlama Kodu Gönderme
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, {
+        const res = await fetch(`${API_URL}/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })

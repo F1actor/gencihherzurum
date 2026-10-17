@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](https://vitejs.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169e1?logo=postgresql&logoColor=white)](https://neon.tech)
+[![MySQL](https://img.shields.io/badge/MySQL-8+-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/Lisans-MIT-green)](LICENSE)
 
 </div>
@@ -78,7 +78,7 @@ Sistem; **Süper Admin** ve **Birim Başkanı** olmak üzere iki farklı kullan�
 | **PDF Export** | html2pdf.js |
 | **Excel Export** | SheetJS (xlsx) |
 | **Backend** | Node.js, Express.js |
-| **Veritabanı** | PostgreSQL (Neon Serverless) |
+| **Veritabanı** | MySQL 8+ |
 | **Auth** | JWT, bcryptjs |
 | **E-posta** | Nodemailer |
 | **Dosya Yükleme** | Multer |
@@ -112,7 +112,7 @@ gencihherzurum/
 │
 └── backend/                  # Express.js API sunucusu
     ├── config/
-    │   └── database.js       # PostgreSQL bağlantısı
+    │   └── database.js       # MySQL bağlantısı
     ├── controllers/          # İş mantığı katmanı
     │   ├── authController.js
     │   ├── adminController.js
@@ -135,7 +135,7 @@ gencihherzurum/
 
 ### Gereksinimler
 - Node.js 18+
-- PostgreSQL veritabanı (veya [Neon](https://neon.tech) ücretsiz hesap)
+- MySQL 8+ veritabanı
 
 ### 1. Depoyu klonla
 
@@ -155,7 +155,7 @@ npm install
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+DATABASE_URL=mysqls://user:password@host:3306/dbname
 JWT_SECRET=cok_gizli_bir_anahtar
 EMAIL_USER=ornek@gmail.com
 EMAIL_PASS=uygulama_sifresi
