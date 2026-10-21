@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Users, MapPin, Phone, ArrowRight, Target, Shield, Heart } from 'lucide-react';
 import logoImg from '../../assets/logo.jpg';
+import { PublicPosts, InstagramFeed } from './PublicPosts';
 
 export default function PublicHome() {
   useEffect(() => {
@@ -52,8 +53,9 @@ export default function PublicHome() {
           <a href="#hakkimizda" style={{ color: '#475569', textDecoration: 'none', fontWeight: '600', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#475569'}>Hakkımızda</a>
           <a href="#vizyon" style={{ color: '#475569', textDecoration: 'none', fontWeight: '600', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#475569'}>Vizyon & Misyon</a>
           <a href="#iletisim" style={{ color: '#475569', textDecoration: 'none', fontWeight: '600', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#475569'}>İletişim</a>
+          <Link to="/gonullu" className="btn" style={{ backgroundColor: 'var(--accent-primary)', color: 'white', padding: '10px 24px', borderRadius: '30px', fontWeight: '700', textDecoration: 'none', whiteSpace: 'nowrap' }}>Gönüllü Ol</Link>
           
-          <div style={{ display: 'flex', gap: '15px', marginLeft: '20px' }}>
+          <div style={{ display: 'flex', gap: '15px', marginLeft: '-15px' }}>
             <Link to="/basvuru" className="btn" style={{ 
               backgroundColor: 'var(--accent-primary)', 
               color: 'white', 
@@ -110,7 +112,7 @@ export default function PublicHome() {
           <p style={{ fontSize: '1.25rem', color: '#cbd5e1', marginBottom: '40px', lineHeight: '1.7', maxWidth: '650px' }}>
             Kur'an-ı Kerim, Siyer, İlmihal ve Adab-ı Muaşeret eğitimlerinin yanı sıra; sportif faaliyetler ve kültürel gezilerle çocuklarımız eğlenerek öğreniyor.
           </p>
-          <div style={{ display: 'flex', gap: '20px' }}>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             <Link to="/basvuru" style={{ 
               display: 'flex', alignItems: 'center', gap: '10px',
               backgroundColor: 'var(--accent-primary)', color: 'white', 
@@ -163,6 +165,8 @@ export default function PublicHome() {
       </section>
 
       {/* About & Vision */}
+      <PublicPosts />
+      <InstagramFeed />
       <section id="hakkimizda" className="reveal" style={{ padding: '80px 8%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', alignItems: 'center' }}>
         <div>
           <span style={{ color: 'var(--accent-primary)', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.9rem' }}>Genç İHH Erzurum</span>
@@ -215,7 +219,7 @@ export default function PublicHome() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <Phone size={22} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
-                <span style={{ color: '#cbd5e1' }}>0555 555 55 55</span>
+                <span style={{ color: '#cbd5e1' }}>0 (543) 614 25 25</span>
               </div>
             </div>
           </div>
@@ -224,6 +228,7 @@ export default function PublicHome() {
             <h4 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '25px', color: 'white' }}>Hızlı Bağlantılar</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <Link to="/basvuru" style={{ color: '#cbd5e1', textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#cbd5e1'}>Yaz Okulu Başvuru</Link>
+              <Link to="/gonullu" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Gönüllü Ol</Link>
               <Link to="/muhabbet" style={{ color: '#cbd5e1', textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#cbd5e1'}>Muhabbet Okulu Portalı</Link>
               <Link to="/yonetim" style={{ color: '#cbd5e1', textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={e => e.target.style.color = 'var(--accent-primary)'} onMouseLeave={e => e.target.style.color = '#cbd5e1'}>Yetkili Girişi</Link>
             </div>

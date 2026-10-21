@@ -14,6 +14,7 @@ import AIChatWidget from './shared/ui/AIChatWidget';
 
 // Public Pages
 import PublicHome from './features/public/PublicHome';
+import VolunteerApply from './features/public/VolunteerApply';
 import MuhabbetApply from './features/muhabbet/MuhabbetApply';
 import MuhabbetPortal from './features/muhabbet/MuhabbetPortal';
 
@@ -118,6 +119,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PublicHome />} />
             <Route path="/basvuru" element={<MuhabbetApply />} />
+            <Route path="/gonullu" element={<VolunteerApply />} />
             <Route path="/muhabbet" element={<MuhabbetPortal />} />
             <Route path="/yonetim/*" element={<PortalContent />} />
             <Route path="*" element={<Navigate to="/" replace />} />

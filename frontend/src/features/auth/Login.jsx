@@ -29,7 +29,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
         const res = await fetch(`${API_URL}/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, otp, newPassword })
+          body: JSON.stringify({ email, otpCode: otp, newPassword })
         });
         const data = await res.json();
         if (res.ok) {
@@ -75,7 +75,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
     <AuthLayout title="Tekrar Hoş Geldiniz" subtitle="Hesabınıza giriş yaparak devam edin">
       <form onSubmit={handleSubmit} style={{ width: '100%', textAlign: 'left' }}>
         <div className="form-group">
-          <label className="form-label">E-posta Adresi</label>
+          <label className="form-label">{forgotMode ? 'E-posta Adresi' : 'E-posta veya Kullanıcı Adı'}</label>
           <div style={{ position: 'relative' }}>
             <Mail size={18} style={{
               position: 'absolute',
@@ -85,10 +85,10 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
               color: 'var(--text-muted)'
             }} />
             <input
-              type="email"
+              type={forgotMode ? 'email' : 'text'}
               required
               className="form-control"
-              placeholder="Örn: ornek@gmail.com"
+              placeholder={forgotMode ? 'Örn: ornek@gmail.com' : 'E-posta veya admin'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ paddingLeft: '40px', width: '100%' }}

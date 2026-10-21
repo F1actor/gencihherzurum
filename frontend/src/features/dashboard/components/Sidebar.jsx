@@ -17,10 +17,12 @@ export default function Sidebar({
   const navItems = [
     { id: 'overview', icon: <Shield size={18} />, label: 'Genel Panel' },
     { id: 'presidents', icon: <Users size={18} />, label: 'Birim Başkanları' },
+    { id: 'volunteers', icon: <Users size={18} />, label: 'Gönüllü Başvuruları' },
     { id: 'reports', icon: <BarChart2 size={18} />, label: 'Raporlar' },
     { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Görevler' },
     { id: 'audits', icon: <Bell size={18} />, label: 'Denetim & Pasiflik' },
     { id: 'gallery', icon: <ImageIcon size={18} />, label: 'Etkinlik Medyası' },
+    { id: 'publicPosts', icon: <ImageIcon size={18} />, label: 'Site Fotoğrafları' },
     { id: 'muhabbet', icon: <Target size={18} />, label: 'Muhabbet Okulu' },
     { id: 'system', icon: <Settings size={18} />, label: 'Sistem Yönetimi' },
   ];

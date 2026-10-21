@@ -138,7 +138,7 @@ export default function MuhabbetApply() {
               <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '16px', marginBottom: '35px', display: 'flex', alignItems: 'flex-start', gap: '15px', borderLeft: '4px solid var(--accent-primary)' }}>
                 <Phone size={24} color="var(--accent-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <p style={{ margin: 0, fontSize: '0.95rem', color: '#475569', lineHeight: '1.6' }}>
-                  Yaz okulumuzun kayıt ücreti ve ödeme detayları hakkında bilgi almak için lütfen <strong>0555 555 55 55</strong> numaralı dernek hattımızdan bize ulaşın.
+                  Yaz okulumuzun kayıt ücreti ve ödeme detayları hakkında bilgi almak için lütfen <strong>0 (543) 614 25 25</strong> numaralı dernek hattımızdan bize ulaşın.
                 </p>
               </div>
 

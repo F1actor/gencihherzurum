@@ -6,6 +6,7 @@ import { getAssetUrl } from '../../shared/config/api';
 import logoImg from '../../assets/logo.jpg';
 import EventMediaGallery from '../events/EventMediaGallery';
 import MuhabbetTeacherDashboard from '../muhabbet/MuhabbetTeacherDashboard';
+import { PublicPostsManager } from '../public/PublicPosts';
 
 const daysMap = {
   1: 'Pazartesi',
@@ -409,6 +410,8 @@ export default function UnitDashboard() {
             </button>
           )}
 
+          {user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <button onClick={() => triggerTransition(() => setActiveTab('publicPosts'))} className={`btn ${activeTab === 'publicPosts' ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px' }} title="Site Fotoğrafları"><ImageIcon size={18} />{!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Site Fotoğrafları</span>}</button>}
+
           <button 
             onClick={() => triggerTransition(() => setActiveTab('teacher_mode'))} 
             className={`btn ${activeTab === 'teacher_mode' ? 'btn-primary' : 'btn-secondary'}`}
@@ -532,7 +535,7 @@ export default function UnitDashboard() {
         }}>
           <div style={{ textAlign: 'left' }}>
             <h1 style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-display)' }}>
-              {activeTab === 'dashboard' ? `${user?.assignedUnit} Paneli` : activeTab === 'gallery' ? 'Etkinlik Medyası' : 'Hesabım'}
+              {activeTab === 'dashboard' ? `${user?.assignedUnit} Paneli` : activeTab === 'gallery' ? 'Etkinlik Medyası' : activeTab === 'publicPosts' ? 'Site Fotoğrafları' : 'Hesabım'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
               {activeTab === 'dashboard' ? 'Etkinliklerinizi ve haftalık hedeflerinizi buradan takip edin.' : activeTab === 'gallery' ? 'Birimlerden gelen etkinlik medyalarını inceleyin.' : 'Hesap bilgilerinizi ve şifrenizi buradan güncelleyebilirsiniz.'}
@@ -1089,6 +1092,7 @@ export default function UnitDashboard() {
           </div>
         )}
 
+        {activeTab === 'publicPosts' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <PublicPostsManager />}
         {/* TAB: ETKİNLİK MEDYASI (YALNIZCA MEDYA BAŞKANI) */}
         {activeTab === 'gallery' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && (
           <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} onDeleteEvent={handleDeleteEvent} />

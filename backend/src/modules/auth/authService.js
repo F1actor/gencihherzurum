@@ -3,9 +3,10 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../../config/database');
 const { sendOtpEmail } = require('../../services/emailService');
 const AppError = require('../../core/errors/AppError');
+const { randomInt } = require('crypto');
 
 function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 /**
@@ -23,13 +24,18 @@ exports.registerUser = async ({ fullName, email, password, phoneNumber }) => {
   const otpCode = generateOtp();
   const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  await query.run(
+  const created = await query.run(
     `INSERT INTO users (fullName, email, passwordHash, role, phoneNumber, isEmailVerified, otpCode, otpExpiresAt)
      VALUES (?, ?, ?, 'PENDING', ?, 0, ?, ?)`,
     [fullName, email.toLowerCase(), passwordHash, phoneNumber, otpCode, otpExpiresAt]
   );
 
-  sendOtpEmail(email.toLowerCase(), fullName, otpCode);
+  try {
+    await sendOtpEmail(email.toLowerCase(), fullName, otpCode);
+  } catch (error) {
+    await query.run('DELETE FROM users WHERE id = ? AND isEmailVerified = 0', [created.id]);
+    throw new AppError('Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.', 503);
+  }
 };
 
 exports.verifyOtpCode = async ({ email, otpCode }) => {
@@ -54,7 +60,8 @@ exports.resendOtpCode = async ({ email }) => {
   const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   await query.run('UPDATE users SET otpCode = ?, otpExpiresAt = ? WHERE id = ?', [otpCode, otpExpiresAt, user.id]);
-  sendOtpEmail(user.email, user.fullName, otpCode);
+  try { await sendOtpEmail(user.email, user.fullName, otpCode); }
+  catch { throw new AppError('Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.', 503); }
 };
 
 exports.loginUser = async ({ email, password }) => {
@@ -110,11 +117,12 @@ exports.forgotPasswordRequest = async ({ email }) => {
   const user = await query.get('SELECT id, fullName FROM users WHERE email = ?', [email.toLowerCase()]);
   if (!user) return; // güvenlik: kullanıcı yoksa bile başarılı mesaj dön
 
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpCode = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   await query.run('UPDATE users SET resetOtpCode = ?, resetOtpExpiresAt = ? WHERE id = ?', [otpCode, expiresAt, user.id]);
-  sendOtpEmail(email.toLowerCase(), user.fullName, otpCode, 'reset');
+  try { await sendOtpEmail(email.toLowerCase(), user.fullName, otpCode, 'reset'); }
+  catch { /* Aynı yanıtı koruyarak hesap varlığını açığa çıkarmıyoruz. */ }
 };
 
 exports.resetUserPassword = async ({ email, otpCode, newPassword }) => {

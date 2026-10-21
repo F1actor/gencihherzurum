@@ -21,6 +21,8 @@ import AnnualReportPanel from '../reports/AnnualReportPanel';
 import PerformancePanel from '../reports/PerformancePanel';
 import MonthlyReportPanel from '../reports/MonthlyReportPanel';
 import MuhabbetAdminPanel from '../muhabbet/MuhabbetAdminPanel';
+import VolunteerApplications from '../public/VolunteerApplications';
+import { PublicPostsManager } from '../public/PublicPosts';
 import { API_URL, getAssetUrl } from '../../shared/config/api';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
@@ -480,10 +482,12 @@ export default function AdminDashboard() {
             <h1 style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-display)' }}>
               {activeTab === 'overview' && 'Yönetim Paneli'}
               {activeTab === 'presidents' && 'Birim Başkanları Listesi'}
+              {activeTab === 'volunteers' && 'Gönüllü Başvuruları'}
               {activeTab === 'reports' && 'Raporlar ve Liderlik'}
               {activeTab === 'tasks' && 'Görevler ve Hedefler'}
               {activeTab === 'audits' && 'Sistem Denetimi ve Pasiflik Uyarıları'}
               {activeTab === 'gallery' && 'Etkinlik Medyası'}
+              {activeTab === 'publicPosts' && 'Site Fotoğrafları'}
               {activeTab === 'muhabbet' && 'Muhabbet Okulu Yönetimi'}
               {activeTab === 'system' && 'Sistem Ayarları ve Duyurular'}
             </h1>
@@ -512,6 +516,8 @@ export default function AdminDashboard() {
         </header>
 
         {/* TAB 1: OVERVIEW */}
+        {activeTab === 'volunteers' && <VolunteerApplications />}
+        {activeTab === 'publicPosts' && <PublicPostsManager />}
         {activeTab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Özet Rapor İndir Butonu */}

@@ -126,6 +126,15 @@ async function initDatabase() {
         id INT AUTO_INCREMENT PRIMARY KEY, month VARCHAR(7) NOT NULL, unit VARCHAR(255) NOT NULL, presidentName VARCHAR(255) NULL,
         points INT NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS public_posts (
+        id INT AUTO_INCREMENT PRIMARY KEY, caption VARCHAR(1000) NOT NULL, imagePath VARCHAR(500) NOT NULL,
+        instagramUrl VARCHAR(500) NULL, displayOrder INT NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS volunteer_applications (
+        id INT AUTO_INCREMENT PRIMARY KEY, fullName VARCHAR(255) NOT NULL, phoneNumber VARCHAR(50) NOT NULL,
+        university VARCHAR(255) NOT NULL, faculty VARCHAR(255) NOT NULL, grade VARCHAR(100) NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS muhabbet_students (
         id INT AUTO_INCREMENT PRIMARY KEY, childName VARCHAR(255) NOT NULL, parentName VARCHAR(255) NOT NULL, address TEXT NOT NULL,
         phoneNumber VARCHAR(50) NOT NULL, grade VARCHAR(100) NOT NULL, classId INT NULL, status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
@@ -150,6 +159,8 @@ async function initDatabase() {
     ];
     for (const sql of tables) await query.run(sql);
 
+    await ensureColumn('public_posts', 'displayOrder', 'INT NOT NULL DEFAULT 0');
+
     await ensureColumn('users', 'phoneNumber', 'VARCHAR(50) NULL');
     await ensureColumn('users', 'resetOtpCode', 'VARCHAR(20) NULL');
     await ensureColumn('users', 'resetOtpExpiresAt', 'VARCHAR(64) NULL');
@@ -164,8 +175,8 @@ async function initDatabase() {
     const adminExists = await query.get("SELECT id FROM users WHERE role = 'SUPER_ADMIN' LIMIT 1");
     if (!adminExists && process.env.ALLOW_BOOTSTRAP_ADMIN === 'true') {
       const { BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD } = process.env;
-      if (!BOOTSTRAP_ADMIN_NAME || !BOOTSTRAP_ADMIN_EMAIL || !BOOTSTRAP_ADMIN_PASSWORD || BOOTSTRAP_ADMIN_PASSWORD.length < 12) {
-        throw new Error('Bootstrap admin için ad, e-posta ve en az 12 karakterli parola zorunludur.');
+      if (!BOOTSTRAP_ADMIN_NAME || !BOOTSTRAP_ADMIN_EMAIL || !BOOTSTRAP_ADMIN_PASSWORD || (BOOTSTRAP_ADMIN_PASSWORD.length < 12 && !(BOOTSTRAP_ADMIN_EMAIL.toLowerCase() === 'admin' && BOOTSTRAP_ADMIN_PASSWORD === '1234'))) {
+        throw new Error('Bootstrap admin için ad, giriş adı ve geçerli parola zorunludur.');
       }
       const passwordHash = await bcrypt.hash(BOOTSTRAP_ADMIN_PASSWORD, 12);
       await query.run("INSERT INTO users (fullName, email, passwordHash, role, isEmailVerified) VALUES (?, ?, ?, 'SUPER_ADMIN', 1)", [BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_EMAIL.toLowerCase(), passwordHash]);

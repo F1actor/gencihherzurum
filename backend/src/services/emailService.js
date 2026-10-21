@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 
 let transporter = null;
+const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 // E-posta göndericisini ilklendir
 async function initTransporter() {
@@ -73,7 +74,7 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
           </div>
           <div style="padding: 40px 30px; color: #333333; text-align: left; line-height: 1.6;">
             <h2 style="margin-top: 0; font-size: 18px; font-weight: 600; color: #1b5e20;">${heading}</h2>
-            <p style="font-size: 15px;">Merhaba <strong>${fullName}</strong>,</p>
+            <p style="font-size: 15px;">Merhaba <strong>${escapeHtml(fullName)}</strong>,</p>
             <p style="font-size: 15px;">${bodyText}</p>
             <div style="background-color: #f1f8e9; border-radius: 8px; padding: 15px; text-align: center; margin: 25px 0; border: 1px solid #c8e6c9;">
               <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #2e7d32;">${otpCode}</span>
@@ -100,9 +101,12 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
       if (nodemailer.getTestMessageUrl(info)) {
         console.log(`[TEST MAİL ÖNİZLEME LİNKİ]: ${nodemailer.getTestMessageUrl(info)}`);
       }
+    } else if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMTP yapılandırması kullanılamıyor.');
     }
   } catch (error) {
     console.error('E-posta gönderme hatası:', error.message);
+    if (process.env.NODE_ENV === 'production') throw error;
   }
   
   if (process.env.NODE_ENV === 'production') return;
