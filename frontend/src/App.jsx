@@ -1,22 +1,28 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './shared/context/AuthContext';
 import { NotificationProvider } from './shared/context/NotificationContext';
 import Login from './features/auth/Login';
 import Register from './features/auth/Register';
 import VerifyOtp from './features/auth/VerifyOtp';
-import AdminDashboard from './features/dashboard/AdminDashboard';
-import UnitDashboard from './features/dashboard/UnitDashboard';
-import MuhabbetTeacherDashboard from './features/muhabbet/MuhabbetTeacherDashboard';
 import { ShieldAlert, RefreshCw, LogOut, Sun, Moon } from 'lucide-react';
 import logoImg from './assets/logo.jpg';
-import AIChatWidget from './shared/ui/AIChatWidget';
 
 // Public Pages
 import PublicHome from './features/public/PublicHome';
 import VolunteerApply from './features/public/VolunteerApply';
 import MuhabbetApply from './features/muhabbet/MuhabbetApply';
 import MuhabbetPortal from './features/muhabbet/MuhabbetPortal';
+import { NewsPage, NewsDetailPage, StaticPage } from './features/public/NewsPages';
+
+const AdminDashboard = lazy(() => import('./features/dashboard/AdminDashboard'));
+const UnitDashboard = lazy(() => import('./features/dashboard/UnitDashboard'));
+const MuhabbetTeacherDashboard = lazy(() => import('./features/muhabbet/MuhabbetTeacherDashboard'));
+const AIChatWidget = lazy(() => import('./shared/ui/AIChatWidget'));
+
+function RouteLoader() {
+  return <div className="loading-overlay"><img src={logoImg} className="spin-logo-image" style={{ width: 50, height: 50 }} alt="Yükleniyor" /></div>;
+}
 
 function PortalContent() {
   const { user, loading, logout, theme, toggleTheme, loadingScreen, triggerTransition } = useAuth();
@@ -116,14 +122,21 @@ export default function App() {
     <NotificationProvider>
       <AuthProvider>
         <BrowserRouter>
+          <Suspense fallback={<RouteLoader />}>
           <Routes>
             <Route path="/" element={<PublicHome />} />
+            <Route path="/hakkimizda" element={<StaticPage type="about" />} />
+            <Route path="/calismalarimiz" element={<StaticPage type="works" />} />
+            <Route path="/basarilarimiz" element={<StaticPage type="achievements" />} />
+            <Route path="/haberler" element={<NewsPage />} />
+            <Route path="/haberler/:id" element={<NewsDetailPage />} />
             <Route path="/basvuru" element={<MuhabbetApply />} />
             <Route path="/gonullu" element={<VolunteerApply />} />
             <Route path="/muhabbet" element={<MuhabbetPortal />} />
             <Route path="/yonetim/*" element={<PortalContent />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </NotificationProvider>

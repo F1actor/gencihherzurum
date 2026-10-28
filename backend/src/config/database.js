@@ -128,7 +128,13 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS public_posts (
         id INT AUTO_INCREMENT PRIMARY KEY, caption VARCHAR(1000) NOT NULL, imagePath VARCHAR(500) NOT NULL,
-        instagramUrl VARCHAR(500) NULL, displayOrder INT NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        instagramUrl VARCHAR(500) NULL, category VARCHAR(80) NOT NULL DEFAULT 'Faaliyetler', displayOrder INT NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS news (
+        id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(200) NOT NULL, summary VARCHAR(700) NOT NULL, body TEXT NOT NULL,
+        category VARCHAR(80) NOT NULL DEFAULT 'Haberler', coverImagePath VARCHAR(500) NOT NULL, authorId INT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_news_created (createdAt)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS volunteer_applications (
         id INT AUTO_INCREMENT PRIMARY KEY, fullName VARCHAR(255) NOT NULL, phoneNumber VARCHAR(50) NOT NULL,
@@ -160,6 +166,7 @@ async function initDatabase() {
     for (const sql of tables) await query.run(sql);
 
     await ensureColumn('public_posts', 'displayOrder', 'INT NOT NULL DEFAULT 0');
+    await ensureColumn('public_posts', 'category', "VARCHAR(80) NOT NULL DEFAULT 'Faaliyetler'");
 
     await ensureColumn('users', 'phoneNumber', 'VARCHAR(50) NULL');
     await ensureColumn('users', 'resetOtpCode', 'VARCHAR(20) NULL');

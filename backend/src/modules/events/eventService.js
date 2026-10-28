@@ -1,6 +1,7 @@
 const { query } = require('../../config/database');
 const AppError = require('../../core/errors/AppError');
 const path = require('path');
+const { uploadDirectory } = require('../../config/uploads');
 const fs = require('fs');
 
 /**
@@ -75,7 +76,7 @@ exports.updateEvent = async ({ id, title, description, eventDate, proofImagePath
 
   const newProofPath = proofImagePath || event.proofImagePath;
   if (proofImagePath && event.proofImagePath) {
-    const oldPath = path.join(__dirname, '..', 'uploads', path.basename(event.proofImagePath));
+    const oldPath = path.join(uploadDirectory, path.basename(event.proofImagePath));
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
   }
 
@@ -98,7 +99,7 @@ exports.deleteEvent = async ({ id, user }) => {
   }
 
   if (event.proofImagePath) {
-    const filePath = path.join(__dirname, '..', 'uploads', path.basename(event.proofImagePath));
+    const filePath = path.join(uploadDirectory, path.basename(event.proofImagePath));
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 

@@ -6,7 +6,7 @@ import { getAssetUrl } from '../../shared/config/api';
 import logoImg from '../../assets/logo.jpg';
 import EventMediaGallery from '../events/EventMediaGallery';
 import MuhabbetTeacherDashboard from '../muhabbet/MuhabbetTeacherDashboard';
-import { PublicPostsManager } from '../public/PublicPosts';
+import { SiteContentManager } from '../public/PublicPosts';
 
 const daysMap = {
   1: 'Pazartesi',
@@ -328,8 +328,7 @@ export default function UnitDashboard() {
         top: 0,
         height: '100vh',
         justifyContent: 'space-between',
-        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        position: 'relative'
+        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}>
         {/* Toggle Collapse Button */}
         <button 
@@ -1092,7 +1091,7 @@ export default function UnitDashboard() {
           </div>
         )}
 
-        {activeTab === 'publicPosts' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <PublicPostsManager />}
+        {activeTab === 'publicPosts' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <SiteContentManager />}
         {/* TAB: ETKİNLİK MEDYASI (YALNIZCA MEDYA BAŞKANI) */}
         {activeTab === 'gallery' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && (
           <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} onDeleteEvent={handleDeleteEvent} />
@@ -1143,7 +1142,6 @@ export default function UnitDashboard() {
                       padding: '2px 8px', 
                       borderRadius: '4px',
                       fontSize: '12px',
-                      fontWeight: 'bold',
                       marginTop: '2px',
                       backgroundColor: previewImage.type === 'ROUTINE' ? 'rgba(59, 130, 246, 0.1)' : previewImage.type === 'TARGET' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(91, 128, 54, 0.1)',
                       color: previewImage.type === 'ROUTINE' ? '#3b82f6' : previewImage.type === 'TARGET' ? '#8b5cf6' : '#5b8036',

@@ -15,7 +15,7 @@ export default function MuhabbetApply() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Modal state
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
@@ -25,9 +25,7 @@ export default function MuhabbetApply() {
     fetch(`${API_URL}/muhabbet/settings`)
       .then(res => res.json())
       .then(data => {
-        if (data.isApplicationsOpen === false) {
-          setIsOpen(false);
-        }
+        setIsOpen(data.isApplicationsOpen === true);
       })
       .catch(() => {}); // fallback to open
   }, []);

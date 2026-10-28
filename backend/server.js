@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { uploadDirectory } = require('./src/config/uploads');
 const { initDatabase } = require('./src/config/database');
 const { initCronJobs } = require('./src/services/cronService');
 const errorMiddleware = require('./src/middleware/errorMiddleware');
@@ -16,6 +17,7 @@ const llmRoutes = require('./src/modules/llm/llmRoutes');
 const muhabbetRoutes = require('./src/modules/muhabbet/muhabbetRoutes');
 const volunteerRoutes = require('./src/modules/volunteer/volunteerRoutes');
 const publicPostRoutes = require('./src/modules/publicPosts/publicPostRoutes');
+const newsRoutes = require('./src/modules/news/newsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,7 +45,7 @@ app.use('/api/muhabbet/apply', createRateLimiter({ windowMs: 60 * 60 * 1000, max
 app.use('/api/volunteers', createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30 }));
 
 // Uploads (kanıt resimleri) static olarak sun
-app.use('/uploads', express.static(path.join(__dirname, 'src', 'modules', 'uploads')));
+app.use('/uploads', express.static(uploadDirectory));
 
 // API Rotaları
 app.use('/api/auth', authRoutes);
@@ -55,6 +57,7 @@ app.use('/api/llm', llmRoutes);
 app.use('/api/muhabbet', muhabbetRoutes);
 app.use('/api/volunteers', volunteerRoutes);
 app.use('/api/public-posts', publicPostRoutes);
+app.use('/api/news', newsRoutes);
 
 // Sağlık kontrolü
 app.get('/health', (req, res) => {

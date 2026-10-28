@@ -7,10 +7,8 @@ const AppError = require('../../core/errors/AppError');
 
 exports.checkApplicationsOpen = async () => {
   const settings = await query.get("SELECT settingValue FROM muhabbet_settings WHERE LOWER(settingKey) = 'isapplicationsopen'");
-  if (settings) {
-    const val = settings.settingValue ?? settings.settingvalue;
-    if (val === 'false' || val === '0') throw new AppError('Başvurular şu anda kapalıdır.', 400);
-  }
+  const val = settings?.settingValue ?? settings?.settingvalue;
+  if (val !== 'true' && val !== '1') throw new AppError('Başvurular şu anda kapalıdır.', 403);
 };
 
 exports.createApplication = async ({ childName, parentName, address, phoneNumber, grade }) => {
@@ -162,7 +160,7 @@ exports.getAttendanceReport = async ({ classId, date }) => {
 
 exports.getSettings = async () => {
   const rows = await query.all('SELECT * FROM muhabbet_settings');
-  const result = { isApplicationsOpen: true };
+  const result = { isApplicationsOpen: false };
   rows.forEach(r => {
     const key = r.settingKey || r.settingkey;
     const val = r.settingValue ?? r.settingvalue;

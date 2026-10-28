@@ -3,11 +3,12 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadDirectory } = require('../../config/uploads');
 const eventController = require('./eventController');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
 
 // uploads klasörünün varlığından emin olalım
-const uploadDir = path.join(__dirname, '..', 'uploads');
+const uploadDir = uploadDirectory;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

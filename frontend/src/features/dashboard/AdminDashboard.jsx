@@ -22,7 +22,7 @@ import PerformancePanel from '../reports/PerformancePanel';
 import MonthlyReportPanel from '../reports/MonthlyReportPanel';
 import MuhabbetAdminPanel from '../muhabbet/MuhabbetAdminPanel';
 import VolunteerApplications from '../public/VolunteerApplications';
-import { PublicPostsManager } from '../public/PublicPosts';
+import { SiteContentManager } from '../public/PublicPosts';
 import { API_URL, getAssetUrl } from '../../shared/config/api';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
@@ -517,7 +517,7 @@ export default function AdminDashboard() {
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'volunteers' && <VolunteerApplications />}
-        {activeTab === 'publicPosts' && <PublicPostsManager />}
+        {activeTab === 'publicPosts' && <SiteContentManager />}
         {activeTab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Özet Rapor İndir Butonu */}
