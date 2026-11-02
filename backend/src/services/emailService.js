@@ -118,6 +118,40 @@ async function sendOtpEmail(toEmail, fullName, otpCode, type = 'verify') {
   console.log(`==============================================\n`);
 }
 
+// Birim ataması tamamlandığında kullanıcıya bilgi ver.
+// E-posta altyapısındaki bir sorun atamayı geri almamalıdır; false döndürerek
+// yöneticinin panelde durumu görmesini sağlarız.
+async function sendUnitAssignmentEmail(toEmail, fullName, unit, roleLabel) {
+  try {
+    const mailTransporter = await initTransporter();
+    if (!mailTransporter) throw new Error('SMTP yapılandırması kullanılamıyor.');
+
+    await mailTransporter.sendMail({
+      from: process.env.SMTP_FROM || '"Genç İHH Erzurum" <no-reply@gencihh.org>',
+      to: toEmail,
+      subject: 'Birim atamanız onaylandı | Genç İHH Erzurum',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;color:#1e293b;line-height:1.6">
+          <h2 style="color:#1b5e20">Birim atamanız onaylandı</h2>
+          <p>Merhaba <strong>${escapeHtml(fullName)}</strong>,</p>
+          <p>Genç İHH Erzurum Teşkilat Yönetim Portalı'ndaki birim atamanız onaylandı.</p>
+          <table style="border-collapse:collapse;width:100%;margin:20px 0">
+            <tr><td style="padding:8px;border:1px solid #dbe4dc"><strong>Birim</strong></td><td style="padding:8px;border:1px solid #dbe4dc">${escapeHtml(unit)}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #dbe4dc"><strong>Görev</strong></td><td style="padding:8px;border:1px solid #dbe4dc">${escapeHtml(roleLabel)}</td></tr>
+          </table>
+          <p>Hesabınıza giriş yaparak yönetim ekranına erişebilirsiniz.</p>
+          <p style="color:#64748b;font-size:13px">Bu e-posta bilgilendirme amaçlıdır.</p>
+        </div>
+      `
+    });
+    console.log(`Birim atama e-postası gönderildi: ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Birim atama e-postası gönderilemedi:', error.message);
+    return false;
+  }
+}
+
 // Haftalık özet e-postası (admin'e)
 async function sendWeeklySummaryEmail(toEmail, summaryData) {
   try {
@@ -178,6 +212,7 @@ async function sendVolunteerForwardEmail(toEmail, recipientName, application) {
 
 module.exports = {
   sendOtpEmail,
+  sendUnitAssignmentEmail,
   sendWeeklySummaryEmail,
   sendVolunteerForwardEmail
 };

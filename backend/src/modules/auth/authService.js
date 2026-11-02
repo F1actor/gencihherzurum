@@ -9,6 +9,15 @@ function generateOtp() {
   return randomInt(100000, 1000000).toString();
 }
 
+function createSessionToken(user) {
+  if (!process.env.JWT_SECRET) throw new AppError('Oturum yapılandırması eksik.', 503);
+  return jwt.sign(
+    { id: user.id, role: user.role, assignedUnit: user.assignedUnit },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '10m' }
+  );
+}
+
 /**
  * Auth Service — Kimlik doğrulama iş mantığı katmanı.
  * Controller'ı HTTP sorumluluktan arındırır.
@@ -77,12 +86,7 @@ exports.loginUser = async ({ email, password }) => {
     throw err;
   }
 
-  if (!process.env.JWT_SECRET) throw new AppError('Oturum yapılandırması eksik.', 503);
-  const token = jwt.sign(
-    { id: user.id, role: user.role, assignedUnit: user.assignedUnit },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
-  );
+  const token = createSessionToken(user);
 
   return {
     token,
@@ -96,6 +100,8 @@ exports.loginUser = async ({ email, password }) => {
     }
   };
 };
+
+exports.refreshSession = user => ({ token: createSessionToken(user) });
 
 exports.updateUserProfile = async ({ userId, phoneNumber, currentPassword, newPassword }) => {
   if (phoneNumber) {

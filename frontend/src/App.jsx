@@ -16,6 +16,7 @@ import MuhabbetPortal from './features/muhabbet/MuhabbetPortal';
 import { NewsPage, NewsDetailPage, StaticPage } from './features/public/NewsPages';
 import EventApplicationForm from './features/public/EventApplicationFormV2';
 import EventFormsPage from './features/public/EventFormsPage';
+import KvkkPage from './features/public/KvkkPage';
 
 const AdminDashboard = lazy(() => import('./features/dashboard/AdminDashboard'));
 const UnitDashboard = lazy(() => import('./features/dashboard/UnitDashboard'));
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/gonullu" element={<VolunteerApply />} />
             <Route path="/etkinlikler" element={<EventFormsPage />} />
             <Route path="/etkinlikler/:id" element={<EventApplicationForm />} />
+            <Route path="/kvkk" element={<KvkkPage />} />
             <Route path="/muhabbet" element={<MuhabbetPortal />} />
             <Route path="/yonetim/*" element={<PortalContent />} />
             <Route path="*" element={<Navigate to="/" replace />} />

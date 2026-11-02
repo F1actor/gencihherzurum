@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Download, Mail, RefreshCw, Send, Trash2, X } from 'lucide-react';
-import { API_URL } from '../../shared/config/api';
+import { useAuth } from '../../shared/context/AuthContext';
 
 const labels = { NEW: 'Yeni', READ: 'Okundu', FORWARDED: 'Uni baskanina iletildi', CALLED: 'Arandi', POSITIVE: 'Olumlu', NEGATIVE: 'Olumsuz' };
-const headers = { Authorization: `Bearer ${localStorage.getItem('gencihh_token')}`, 'Content-Type': 'application/json' };
 const maskPhone = value => value || '—';
 
 export default function VolunteerApplications() {
-  const [applications, setApplications] = useState([]); const [status, setStatus] = useState('loading'); const [busy, setBusy] = useState(''); const [dialog, setDialog] = useState(null); const printableRef = useRef(null);
-  const load = async () => { setStatus('loading'); try { const r = await fetch(`${API_URL}/volunteers`, { headers }); if (!r.ok) throw new Error(); setApplications(await r.json()); setStatus('ready'); } catch { setStatus('error'); } };
+  const { fetchWithAuth } = useAuth(); const [applications, setApplications] = useState([]); const [status, setStatus] = useState('loading'); const [busy, setBusy] = useState(''); const [dialog, setDialog] = useState(null); const printableRef = useRef(null);
+  const load = async () => { setStatus('loading'); try { const r = await fetchWithAuth('/volunteers'); if (!r.ok) throw new Error(); setApplications(await r.json()); setStatus('ready'); } catch { setStatus('error'); } };
   useEffect(() => { load(); }, []);
   const universityCount = useMemo(() => applications.filter(x => x.educationStatus === 'UNIVERSITY_STUDENT').length, [applications]);
-  const request = async (path, options = {}) => { const r = await fetch(`${API_URL}/volunteers${path}`, { headers, ...options }); const data = await r.json(); if (!r.ok) throw new Error(data.message || 'Islem tamamlanamadi.'); await load(); return data; };
+  const request = async (path, options = {}) => { const r = await fetchWithAuth(`/volunteers${path}`, options); const data = await r.json(); if (!r.ok) throw new Error(data.message || 'Islem tamamlanamadi.'); await load(); return data; };
   const updateStatus = async (id, applicationStatus) => { setBusy(`s${id}`); try { await request(`/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: applicationStatus }) }); } catch (e) { setDialog({ type: 'error', message: e.message }); } finally { setBusy(''); } };
   const forward = async item => { setBusy(`f${item.id}`); try { const result = await request(`/${item.id}/forward`, { method: 'POST' }); setDialog({ type: 'success', message: result.message || 'Basvuru universite baskanina e-posta ile iletildi.' }); } catch (e) { setDialog({ type: 'error', message: e.message }); } finally { setBusy(''); } };
   const remove = async id => { if (!window.confirm('Bu basvuruyu silmek istiyor musunuz?')) return; setBusy(`d${id}`); try { await request(`/${id}`, { method: 'DELETE' }); } catch (e) { setDialog({ type: 'error', message: e.message }); } finally { setBusy(''); } };

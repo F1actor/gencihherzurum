@@ -1,5 +1,5 @@
-import React from 'react';
-import { Users, Award, CheckSquare, Bell, Calendar, LogOut, Moon, Sun, User, Shield, BarChart2, TrendingUp, X, Download, Image as ImageIcon, Filter, Search, Settings, Target } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Award, CheckSquare, Bell, Calendar, LogOut, Moon, Sun, User, Shield, BarChart2, TrendingUp, X, Download, Image as ImageIcon, Filter, Search, Settings, Target, Menu } from 'lucide-react';
 import logoImg from '../../../assets/logo.jpg';
 
 /**
@@ -13,6 +13,7 @@ export default function Sidebar({
 }) {
   const isCoordinator = user?.role === 'MUHABBET_COORDINATOR';
   const disabledStyle = { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' };
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
     { id: 'overview', icon: <Shield size={18} />, label: 'Genel Panel' },
@@ -28,8 +29,12 @@ export default function Sidebar({
     { id: 'system', icon: <Settings size={18} />, label: 'Sistem Yönetimi' },
   ];
 
-  return (
-    <aside style={{
+  return <>
+    <button type="button" className="dashboard-mobile-menu-button" onClick={() => setIsMobileMenuOpen(value => !value)} aria-expanded={isMobileMenuOpen} aria-controls="admin-dashboard-menu">
+      {isMobileMenuOpen ? <X size={21} /> : <Menu size={21} />} <span>Menü</span>
+    </button>
+    {isMobileMenuOpen && <button type="button" className="dashboard-mobile-overlay" aria-label="Menüyü kapat" onClick={() => setIsMobileMenuOpen(false)} />}
+    <aside id="admin-dashboard-menu" className={`dashboard-sidebar dashboard-sidebar-admin ${isMobileMenuOpen ? 'is-mobile-open' : ''}`} style={{
       width: isSidebarCollapsed ? '80px' : '280px',
       backgroundColor: 'var(--bg-secondary)',
       borderRight: '1px solid var(--border-color)',
@@ -78,7 +83,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
-                onClick={() => !isOnlyAllowed && triggerTransition(() => setActiveTab(item.id))}
+                onClick={() => { if (!isOnlyAllowed) { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab(item.id)); } }}
                 className={`btn ${activeTab === item.id ? 'btn-primary' : 'btn-secondary'}`}
                 style={{
                   justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
@@ -101,7 +106,7 @@ export default function Sidebar({
       {/* Bottom: Profile & Logout */}
       <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: isSidebarCollapsed ? 'center' : 'stretch' }}>
         <div
-          onClick={() => triggerTransition(() => setActiveTab('profile'))}
+          onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('profile')); }}
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
@@ -124,7 +129,7 @@ export default function Sidebar({
         </div>
 
         <button
-          onClick={() => triggerTransition(() => setActiveTab('profile'))}
+          onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('profile')); }}
           className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
           style={{ width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px' }}
           title="Hesabım"
@@ -134,7 +139,7 @@ export default function Sidebar({
         </button>
 
         <button
-          onClick={handleLogout}
+          onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}
           className="btn btn-secondary"
           style={{ width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px' }}
           title="Çıkış Yap"
@@ -145,5 +150,5 @@ export default function Sidebar({
       </div>
       <style>{`@keyframes sidebarMediaPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } } .sidebar-media-badge { animation: sidebarMediaPulse 1.2s ease-in-out infinite; }`}</style>
     </aside>
-  );
+  </>;
 }

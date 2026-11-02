@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, LogOut, CheckCircle, Clock, Calendar, History, Image as ImageIcon, X, Download, PlusCircle, Award, Loader, Moon, Sun, ListFilter } from 'lucide-react';
+import { User, LogOut, CheckCircle, Clock, Calendar, History, Image as ImageIcon, X, Download, PlusCircle, Award, Loader, Moon, Sun, ListFilter, Menu } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { getAssetUrl } from '../../shared/config/api';
@@ -50,6 +50,7 @@ export default function UnitDashboard() {
   const [activeLeaderboardTab, setActiveLeaderboardTab] = useState('weekly');
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'profile'
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
   const [missingRoutines, setMissingRoutines] = useState([]);
   const [profileForm, setProfileForm] = useState({
@@ -340,8 +341,12 @@ export default function UnitDashboard() {
 
   return (
     <div className="app-container">
+      <button type="button" className="dashboard-mobile-menu-button" onClick={() => setIsMobileMenuOpen(value => !value)} aria-expanded={isMobileMenuOpen} aria-controls="unit-dashboard-menu">
+        {isMobileMenuOpen ? <X size={21} /> : <Menu size={21} />} <span>Menü</span>
+      </button>
+      {isMobileMenuOpen && <button type="button" className="dashboard-mobile-overlay" aria-label="Menüyü kapat" onClick={() => setIsMobileMenuOpen(false)} />}
       {/* Sidebar */}
-      <aside style={{
+      <aside id="unit-dashboard-menu" className={`dashboard-sidebar dashboard-sidebar-unit ${isMobileMenuOpen ? 'is-mobile-open' : ''}`} style={{
         width: isSidebarCollapsed ? '80px' : '280px',
         backgroundColor: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border-color)',
@@ -424,7 +429,7 @@ export default function UnitDashboard() {
 
           {isMediaManager && (
             <button 
-              onClick={() => triggerTransition(() => setActiveTab('gallery'))} 
+              onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('gallery')); }}
               className={`btn ${activeTab === 'gallery' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px', backgroundColor: activeTab === 'gallery' ? 'var(--accent-primary)' : 'rgba(91, 128, 54, 0.1)', color: activeTab === 'gallery' ? '#fff' : 'var(--accent-primary)' }}
               title="Etkinlik Medyası"
@@ -434,10 +439,10 @@ export default function UnitDashboard() {
             </button>
           )}
 
-          {user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <button onClick={() => triggerTransition(() => setActiveTab('publicPosts'))} className={`btn ${activeTab === 'publicPosts' ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px' }} title="Site Fotoğrafları"><ImageIcon size={18} />{!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Site Fotoğrafları</span>}</button>}
+          {user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <button onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('publicPosts')); }} className={`btn ${activeTab === 'publicPosts' ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px' }} title="Site Fotoğrafları"><ImageIcon size={18} />{!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Site Fotoğrafları</span>}</button>}
 
           <button 
-            onClick={() => triggerTransition(() => setActiveTab('teacher_mode'))} 
+            onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('teacher_mode')); }}
             className={`btn ${activeTab === 'teacher_mode' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', marginTop: '10px' }}
             title="Muhabbet Hoca Paneli"
@@ -447,7 +452,7 @@ export default function UnitDashboard() {
           </button>
 
           <button 
-            onClick={() => { triggerTransition(() => setActiveTab('dashboard')); 
+            onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('dashboard'));
               // Duyuruları okunmuş işaretle
               const ids = announcements.map(a => a.id);
               localStorage.setItem('readAnnouncements', JSON.stringify(ids));
@@ -500,7 +505,7 @@ export default function UnitDashboard() {
         {/* Profil ve Çıkış */}
         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: isSidebarCollapsed ? 'center' : 'stretch' }}>
           <div 
-            onClick={() => triggerTransition(() => setActiveTab('profile'))}
+            onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('profile')); }}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -532,7 +537,7 @@ export default function UnitDashboard() {
           </div>
 
           <button 
-            onClick={() => triggerTransition(() => setActiveTab('profile'))} 
+            onClick={() => { setIsMobileMenuOpen(false); triggerTransition(() => setActiveTab('profile')); }}
             className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px' }} 
             title="Hesabım"
@@ -541,7 +546,7 @@ export default function UnitDashboard() {
             {!isSidebarCollapsed && <span>Hesabım</span>}
           </button>
 
-          <button onClick={handleLogout} className="btn btn-secondary" style={{ width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px' }} title="Çıkış Yap">
+          <button onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} className="btn btn-secondary" style={{ width: '100%', padding: isSidebarCollapsed ? '10px 0' : '10px 16px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px' }} title="Çıkış Yap">
             <LogOut size={16} />
             {!isSidebarCollapsed && <span>Çıkış Yap</span>}
           </button>
@@ -551,7 +556,7 @@ export default function UnitDashboard() {
       {/* Main Content Area */}
       <main className="main-content">
         {/* Top Header */}
-        <header style={{
+        <header className="dashboard-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

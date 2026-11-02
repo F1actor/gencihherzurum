@@ -1,178 +1,171 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { API_URL } from '../config/api';
 
 const AuthContext = createContext(null);
+const TOKEN_KEY = 'gencihh_token';
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const TOKEN_RENEW_INTERVAL_MS = 60 * 1000;
+
+function getStoredToken() {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  // Eski ekranların dinamik çağrıları için yalnızca açık sayfa ömründe aynalanır.
+  // Sayfa/sekme kapanırken aşağıdaki pagehide dinleyicisi bu anahtarı temizler.
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+  return token;
+}
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('gencihh_token') || null);
+  const [token, setToken] = useState(getStoredToken);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('gencihh_theme') || 'light');
   const [loadingScreen, setLoadingScreen] = useState(false);
+  const lastRenewalRef = useRef(0);
 
-  // Tema değiştirme işlevi
+  const clearSession = () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+  };
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('gencihh_theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  // Uygulama yüklendiğinde oturumu doğrula
   useEffect(() => {
-    const verifySession = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    const clearMirroredToken = event => {
+      if (!event.persisted) localStorage.removeItem(TOKEN_KEY);
+    };
+    window.addEventListener('pagehide', clearMirroredToken);
+    return () => window.removeEventListener('pagehide', clearMirroredToken);
+  }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return undefined;
+    }
+
+    let idleTimeout;
+    let renewing = false;
+    const resetIdleTimeout = () => {
+      window.clearTimeout(idleTimeout);
+      idleTimeout = window.setTimeout(clearSession, IDLE_TIMEOUT_MS);
+    };
+
+    const renewToken = async () => {
+      if (renewing || Date.now() - lastRenewalRef.current < TOKEN_RENEW_INTERVAL_MS) return;
+      renewing = true;
       try {
-        const res = await fetch(`${API_URL}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setUser(data.user);
-        } else {
-          // Token geçersizse oturumu kapat
-          logout();
+        const response = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        if (!response.ok || !data.token) {
+          clearSession();
+          return;
         }
-      } catch (err) {
-        console.error('Oturum doğrulama hatası:', err);
+        lastRenewalRef.current = Date.now();
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        setToken(data.token);
+      } catch {
+        // Geçici bağlantı kesintisinde kullanıcıyı anında atma; token süresi sunucuda ayrıca korunur.
+      } finally {
+        renewing = false;
+      }
+    };
+
+    const handleActivity = () => {
+      resetIdleTimeout();
+      renewToken();
+    };
+    const activityEvents = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach(eventName => window.addEventListener(eventName, handleActivity));
+    resetIdleTimeout();
+
+    const verifySession = async () => {
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        if (response.ok) setUser(data.user);
+        else clearSession();
+      } catch (error) {
+        console.error('Oturum doğrulama hatası:', error);
       } finally {
         setLoading(false);
       }
     };
     verifySession();
+
+    return () => {
+      window.clearTimeout(idleTimeout);
+      activityEvents.forEach(eventName => window.removeEventListener(eventName, handleActivity));
+    };
   }, [token]);
 
-  // Kayıt işlemi
+  const toggleTheme = () => setTheme(current => current === 'light' ? 'dark' : 'light');
+
   const register = async (fullName, email, password, phoneNumber) => {
-    const res = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, email, password, phoneNumber })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Kayıt sırasında hata oluştu.');
+    const response = await fetch(`${API_URL}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName, email, password, phoneNumber }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Kayıt sırasında hata oluştu.');
     return data;
   };
 
-  // OTP E-posta Doğrulama
   const verifyOtp = async (email, otpCode) => {
-    const res = await fetch(`${API_URL}/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otpCode })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Doğrulama hatası.');
+    const response = await fetch(`${API_URL}/auth/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otpCode }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Doğrulama hatası.');
     return data;
   };
 
-  // OTP Tekrar Gönderme
-  const resendOtp = async (email) => {
-    const res = await fetch(`${API_URL}/auth/resend-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Kod gönderme hatası.');
+  const resendOtp = async email => {
+    const response = await fetch(`${API_URL}/auth/resend-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Kod gönderme hatası.');
     return data;
   };
 
-  // Giriş Yap
   const login = async (email, password) => {
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      // E-posta doğrulanmamışsa özel bir hata döndür
-      if (res.status === 403 && data.isEmailVerified === false) {
-        throw { unverified: true, email: data.email, message: data.message };
-      }
+    const response = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const data = await response.json();
+    if (!response.ok) {
+      if (response.status === 403 && data.isEmailVerified === false) throw { unverified: true, email: data.email, message: data.message };
       throw new Error(data.message || 'Giriş yapılamadı.');
     }
-    
-    localStorage.setItem('gencihh_token', data.token);
+    lastRenewalRef.current = Date.now();
+    sessionStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(TOKEN_KEY, data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
   };
 
-  // Çıkış Yap
   const logout = () => {
     setLoadingScreen(true);
-    setTimeout(() => {
-      localStorage.removeItem('gencihh_token');
-      setToken(null);
-      setUser(null);
-      setLoadingScreen(false);
-    }, 500);
+    window.setTimeout(() => { clearSession(); setLoadingScreen(false); }, 350);
   };
 
-  // Yetkili API istekleri için yardımcı fonksiyon
   const fetchWithAuth = async (url, options = {}) => {
-    const headers = {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`
-    };
-    
-    // Eğer FormData gönderiliyorsa Content-Type eklenmemeli (Tarayıcı otomatik belirler boundary ile)
-    if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
+    const headers = { ...options.headers, Authorization: `Bearer ${token}` };
+    if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    const response = await fetch(`${API_URL}${url}`, { ...options, headers });
+    if (response.status === 401) clearSession();
+    if (response.status === 403) {
+      const data = await response.clone().json().catch(() => ({}));
+      if (data.message === 'Geçersiz veya süresi dolmuş oturum anahtarı.') clearSession();
     }
-
-    const res = await fetch(`${API_URL}${url}`, {
-      ...options,
-      headers
-    });
-    
-    if (res.status === 401 || res.status === 403) {
-      const data = await res.json();
-      if (data.message === 'Geçersiz veya süresi dolmuş oturum anahtarı.') {
-        logout();
-      }
-    }
-    
-    return res;
+    return response;
   };
 
-  const triggerTransition = (callback) => {
+  const triggerTransition = callback => {
     setLoadingScreen(true);
-    setTimeout(() => {
-      if (typeof callback === 'function') {
-        callback();
-      }
-      setLoadingScreen(false);
-    }, 500);
+    window.setTimeout(() => { if (typeof callback === 'function') callback(); setLoadingScreen(false); }, 350);
   };
 
-  const value = {
-    user,
-    token,
-    loading,
-    theme,
-    toggleTheme,
-    loadingScreen,
-    setLoadingScreen,
-    triggerTransition,
-    register,
-    verifyOtp,
-    resendOtp,
-    login,
-    logout,
-    fetchWithAuth
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, token, loading, theme, toggleTheme, loadingScreen, setLoadingScreen, triggerTransition, register, verifyOtp, resendOtp, login, logout, fetchWithAuth }}>{children}</AuthContext.Provider>;
 };

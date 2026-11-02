@@ -6,7 +6,6 @@ export const educationStatuses = [
 ];
 
 export const grades = ['Hazırlık', '1. sınıf', '2. sınıf', '3. sınıf', '4. sınıf', '5. sınıf', '6. sınıf'];
-
 const universityStatuses = new Set(['UNIVERSITY_STUDENT', 'UNIVERSITY_GRADUATE', 'ASSOCIATE_STUDENT', 'OPEN_EDUCATION', 'DISTANCE_EDUCATION', 'MASTERS', 'DOCTORATE']);
 const graduateStatuses = new Set(['UNIVERSITY_GRADUATE']);
 export const needsUniversityDetails = status => universityStatuses.has(status);
@@ -15,23 +14,36 @@ export const needsGrade = status => ['UNIVERSITY_STUDENT', 'ASSOCIATE_STUDENT', 
 export const educationDetailTitle = status => needsEmploymentStatus(status) ? 'Mezuniyet bilgileri' : 'Üniversite bilgileri';
 export const universityFieldLabel = status => needsEmploymentStatus(status) ? 'Mezun olduğun üniversite' : 'Üniversite';
 
+// Atatürk Üniversitesi fakülte listesi resmî fakülteler sayfasına göre güncellenmiştir.
 export const universities = {
-  'Ataturk Universitesi': {
-    'Muhendislik Fakultesi': ['Bilgisayar Muhendisligi', 'Biyomuhendislik', 'Cevre Muhendisligi', 'Elektrik-Elektronik Muhendisligi', 'Endustri Muhendisligi', 'Insaat Muhendisligi', 'Kimya Muhendisligi', 'Makine Muhendisligi', 'Metalurji ve Malzeme Muhendisligi'],
-    'Fen Fakultesi': ['Biyoloji', 'Fizik', 'Istatistik', 'Kimya', 'Matematik'],
-    'Edebiyat Fakultesi': ['Cografya', 'Ingiliz Dili ve Edebiyati', 'Psikoloji', 'Sanat Tarihi', 'Sosyoloji', 'Tarih', 'Turk Dili ve Edebiyati'],
-    'Iktisadi ve Idari Bilimler Fakultesi': ['Ekonometri', 'Iktisat', 'Isletme', 'Kamu Yonetimi', 'Uluslararasi Iliskiler'],
-    'Iletisim Fakultesi': ['Gazetecilik', 'Halkla Iliskiler ve Tanitim', 'Radyo, Televizyon ve Sinema'],
-    'Ziraat Fakultesi': ['Bahce Bitkileri', 'Bitki Koruma', 'Tarim Ekonomisi', 'Tarla Bitkileri', 'Toprak Bilimi', 'Zootekni'],
-    'Egitim Fakultesi': ['Okul Oncesi Ogretmenligi', 'Rehberlik ve Psikolojik Danismanlik', 'Sinif Ogretmenligi', 'Turkce Ogretmenligi'],
-    'Ilahiyat Fakultesi': ['Ilahiyat'], 'Tip Fakultesi': ['Tip'], 'Dis Hekimligi Fakultesi': ['Dis Hekimligi'], 'Eczacilik Fakultesi': ['Eczacilik']
+  'Atatürk Üniversitesi': {
+    'Açık ve Uzaktan Öğretim Fakültesi': ['Açıköğretim Programları', 'Uzaktan Öğretim Programları'],
+    'Diş Hekimliği Fakültesi': ['Diş Hekimliği'], 'Eczacılık Fakültesi': ['Eczacılık'],
+    'Edebiyat Fakültesi': ['Arkeoloji', 'Coğrafya', 'Çağdaş Türk Lehçeleri ve Edebiyatları', 'Felsefe', 'İngiliz Dili ve Edebiyatı', 'Psikoloji', 'Sanat Tarihi', 'Sosyoloji', 'Tarih', 'Türk Dili ve Edebiyatı'],
+    'Fen Fakültesi': ['Biyoloji', 'Fizik', 'İstatistik', 'Kimya', 'Matematik', 'Moleküler Biyoloji ve Genetik'],
+    'Güzel Sanatlar Fakültesi': ['Fotoğraf', 'Geleneksel Türk Sanatları', 'Grafik Sanatlar', 'Heykel', 'Müzikoloji', 'Resim', 'Sahne Sanatları', 'Seramik', 'Tekstil ve Moda Tasarımı'],
+    'Hemşirelik Fakültesi': ['Hemşirelik'], 'Hukuk Fakültesi': ['Hukuk'],
+    'İktisadi ve İdari Bilimler Fakültesi': ['Çalışma Ekonomisi ve Endüstri İlişkileri', 'Ekonometri', 'İktisat', 'İşletme', 'Kamu Yönetimi', 'Uluslararası İlişkiler', 'Uluslararası Ticaret ve Lojistik', 'Yönetim Bilişim Sistemleri'],
+    'İlahiyat Fakültesi': ['İlahiyat'],
+    'İletişim Fakültesi': ['Gazetecilik', 'Halkla İlişkiler ve Tanıtım', 'Radyo, Televizyon ve Sinema'],
+    'Kazım Karabekir Eğitim Fakültesi': ['Bilgisayar ve Öğretim Teknolojileri Eğitimi', 'Fen Bilgisi Öğretmenliği', 'İlköğretim Matematik Öğretmenliği', 'İngilizce Öğretmenliği', 'Okul Öncesi Öğretmenliği', 'Özel Eğitim Öğretmenliği', 'Rehberlik ve Psikolojik Danışmanlık', 'Sınıf Öğretmenliği', 'Sosyal Bilgiler Öğretmenliği', 'Türkçe Öğretmenliği'],
+    'Mimarlık ve Tasarım Fakültesi': ['Mimarlık', 'Şehir ve Bölge Planlama', 'Endüstriyel Tasarım', 'İç Mimarlık'],
+    'Mühendislik Fakültesi': ['Bilgisayar Mühendisliği', 'Biyomühendislik', 'Çevre Mühendisliği', 'Elektrik-Elektronik Mühendisliği', 'Endüstri Mühendisliği', 'İnşaat Mühendisliği', 'Kimya Mühendisliği', 'Makine Mühendisliği', 'Metalurji ve Malzeme Mühendisliği'],
+    'Oltu Beşeri ve Sosyal Bilimler Fakültesi': ['Bankacılık ve Finans', 'İşletme', 'Maliye', 'Sosyal Hizmet', 'Siyaset Bilimi ve Kamu Yönetimi'],
+    'Sağlık Bilimleri Fakültesi': ['Beslenme ve Diyetetik', 'Ebelik', 'Fizyoterapi ve Rehabilitasyon', 'Sosyal Hizmet'],
+    'Spor Bilimleri Fakültesi': ['Antrenörlük Eğitimi', 'Beden Eğitimi ve Spor Öğretmenliği', 'Spor Yöneticiliği'],
+    'Su Ürünleri Fakültesi': ['Su Ürünleri Mühendisliği'], 'Tıp Fakültesi': ['Tıp'],
+    'Turizm Fakültesi': ['Gastronomi ve Mutfak Sanatları', 'Turizm İşletmeciliği', 'Turizm Rehberliği'],
+    'Uygulamalı Bilimler Fakültesi': ['Acil Yardım ve Afet Yönetimi', 'Bankacılık ve Finans', 'Muhasebe ve Finans Yönetimi', 'Uluslararası Ticaret ve Lojistik'],
+    'Veteriner Fakültesi': ['Veterinerlik'],
+    'Ziraat Fakültesi': ['Bahçe Bitkileri', 'Bitki Koruma', 'Biyosistem Mühendisliği', 'Gıda Mühendisliği', 'Peyzaj Mimarlığı', 'Tarım Ekonomisi', 'Tarla Bitkileri', 'Toprak Bilimi ve Bitki Besleme', 'Zootekni']
   },
-  'Erzurum Teknik Universitesi': {
-    'Muhendislik ve Mimarlik Fakultesi': ['Bilgisayar Muhendisligi', 'Biyomuhendislik', 'Cevre Muhendisligi', 'Elektrik-Elektronik Muhendisligi', 'Endustri Muhendisligi', 'Insaat Muhendisligi', 'Kimya Muhendisligi', 'Makine Muhendisligi', 'Mekatronik Muhendisligi', 'Mimarlik'],
-    'Fen Fakultesi': ['Fizik', 'Kimya', 'Matematik', 'Molekuler Biyoloji ve Genetik'],
-    'Iktisadi ve Idari Bilimler Fakultesi': ['Iktisat', 'Isletme', 'Siyaset Bilimi ve Kamu Yonetimi', 'Uluslararasi Ticaret ve Lojistik'],
-    'Edebiyat Fakultesi': ['Ingiliz Dili ve Edebiyati', 'Psikoloji', 'Sosyoloji', 'Tarih', 'Turk Dili ve Edebiyati'],
-    'Saglik Bilimleri Fakultesi': ['Beslenme ve Diyetetik', 'Hemsirelik']
+  'Erzurum Teknik Üniversitesi': {
+    'Mühendislik ve Mimarlık Fakültesi': ['Bilgisayar Mühendisliği', 'Biyomühendislik', 'Çevre Mühendisliği', 'Elektrik-Elektronik Mühendisliği', 'Endüstri Mühendisliği', 'İnşaat Mühendisliği', 'Kimya Mühendisliği', 'Makine Mühendisliği', 'Mekatronik Mühendisliği', 'Mimarlık'],
+    'Fen Fakültesi': ['Fizik', 'Kimya', 'Matematik', 'Moleküler Biyoloji ve Genetik'],
+    'İktisadi ve İdari Bilimler Fakültesi': ['İktisat', 'İşletme', 'Siyaset Bilimi ve Kamu Yönetimi', 'Uluslararası Ticaret ve Lojistik'],
+    'Edebiyat Fakültesi': ['İngiliz Dili ve Edebiyatı', 'Psikoloji', 'Sosyoloji', 'Tarih', 'Türk Dili ve Edebiyatı'],
+    'Sağlık Bilimleri Fakültesi': ['Beslenme ve Diyetetik', 'Hemşirelik']
   }
 };
 

@@ -558,7 +558,7 @@ export default function AdminDashboard() {
       {/* Main Content Area */}
       <main className="main-content">
         {/* Top Header */}
-        <header style={{
+        <header className="dashboard-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

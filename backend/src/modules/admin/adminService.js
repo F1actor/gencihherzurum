@@ -1,5 +1,6 @@
 const { query } = require('../../config/database');
 const AppError = require('../../core/errors/AppError');
+const { sendUnitAssignmentEmail } = require('../../services/emailService');
 
 /**
  * Admin Service — Admin paneli iş mantığı katmanı.
@@ -52,6 +53,12 @@ exports.assignUnit = async ({ userId, unit, role = 'UNIT_PRESIDENT' }) => {
 
   let message = `${user.fullName} kullanıcısı ${unit} olarak atandı ve ${roleLabel} yetkileri tanımlandı.`;
   if (existingPresident) message += ` Not: Bu birimde daha önce ${existingPresident.fullName} atanmıştı.`;
+
+  const emailSent = await sendUnitAssignmentEmail(user.email, user.fullName, unit, roleLabel);
+  message += emailSent
+    ? ' Onay e-postası kullanıcıya gönderildi.'
+    : ' Atama tamamlandı; onay e-postası gönderilemedi. SMTP ayarlarını kontrol edin.';
+
   return message;
 };
 

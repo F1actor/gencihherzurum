@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { Lock, Mail, Loader } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Loader } from 'lucide-react';
 import AuthLayout from './AuthLayout';
 import { API_URL } from '../../shared/config/api';
 
@@ -10,6 +10,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const { showNotification } = useNotification();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Şifre Sıfırlama State'leri
@@ -118,15 +119,16 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
                 color: 'var(--text-muted)'
               }} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 className="form-control"
                 placeholder="••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ paddingLeft: '40px', width: '100%' }}
+                style={{ paddingLeft: '40px', paddingRight: '42px', width: '100%' }}
                 disabled={loading}
               />
+              <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'} title={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'inline-grid', placeItems: 'center', padding: 4, border: 0, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }} disabled={loading}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>
             </div>
           </div>
         )}

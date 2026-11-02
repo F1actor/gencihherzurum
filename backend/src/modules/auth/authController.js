@@ -42,6 +42,12 @@ exports.getMe = (req, res) => {
   return res.status(200).json({ user: req.user });
 };
 
+exports.refreshSession = (req, res, next) => {
+  try {
+    return res.status(200).json(authService.refreshSession(req.user));
+  } catch (err) { next(err); }
+};
+
 exports.updateProfile = async (req, res, next) => {
   try {
     await authService.updateUserProfile({ userId: req.user.id, ...req.body });
