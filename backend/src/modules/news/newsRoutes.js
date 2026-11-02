@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { query } = require('../../config/database');
 const { authenticateToken } = require('../../middleware/authMiddleware');
+const { hasSystemAdminAccess } = require('../../core/accessPolicy');
 const { uploadDirectory } = require('../../config/uploads');
 
 const router = express.Router();
@@ -12,7 +13,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 const directory = uploadDirectory;
 
 function canManage(req, res, next) {
-  if (req.user.role === 'SUPER_ADMIN' || (req.user.role === 'UNIT_PRESIDENT' && req.user.assignedUnit === 'Tanıtım ve Medya Başkanı')) return next();
+  if (hasSystemAdminAccess(req.user.role) || (req.user.role === 'UNIT_PRESIDENT' && req.user.assignedUnit === 'Tanıtım ve Medya Başkanı')) return next();
   return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' });
 }
 

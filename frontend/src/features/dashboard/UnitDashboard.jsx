@@ -20,7 +20,7 @@ const daysMap = {
 
 export default function UnitDashboard() {
   const { user, logout, theme, toggleTheme, fetchWithAuth, setLoadingScreen, triggerTransition } = useAuth();
-  const { showNotification } = useNotification();
+  const { showNotification, showConfirm } = useNotification();
   
   // Veri Durumları
   const [myRoutines, setMyRoutines] = useState([]);
@@ -33,6 +33,7 @@ export default function UnitDashboard() {
   const [routineId, setRoutineId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [participantCount, setParticipantCount] = useState('');
   const getLocalDateString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -65,6 +66,13 @@ export default function UnitDashboard() {
   // Etkinlik Medyası (Tanıtım ve Medya Başkanı için)
   const [eventsGallery, setEventsGallery] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
+  const isMediaManager = user?.assignedUnit === 'Tanıtım ve Medya Başkanı';
+  const newMediaCount = eventsGallery.filter((event) => {
+    if (!event.proofImagePath || !event.createdAt) return false;
+    const raw = String(event.createdAt);
+    const created = new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+    return Number.isFinite(created.getTime()) && Date.now() - created.getTime() < 24 * 60 * 60 * 1000;
+  }).length;
 
   useEffect(() => {
     if (user) {
@@ -75,6 +83,21 @@ export default function UnitDashboard() {
       loadDashboardData();
     }
   }, [user]);
+
+  // Tanıtım ve Medya Başkanı, yeni gelen görselleri sayfa yenilemeden fark eder.
+  useEffect(() => {
+    if (!isMediaManager) return undefined;
+    const refreshGallery = async () => {
+      try {
+        const response = await fetchWithAuth('/events/all');
+        if (response.ok) setEventsGallery(await response.json());
+      } catch (error) {
+        console.error('Galeri yenilenemedi:', error);
+      }
+    };
+    const interval = setInterval(refreshGallery, 60000);
+    return () => clearInterval(interval);
+  }, [isMediaManager, fetchWithAuth]);
 
   const loadDashboardData = async () => {
     setLoadingScreen(true);
@@ -207,6 +230,7 @@ export default function UnitDashboard() {
       formData.append('type', type);
       formData.append('title', title);
       formData.append('description', description);
+      formData.append('participantCount', participantCount);
       formData.append('eventDate', eventDate);
       if (type === 'ROUTINE') {
         formData.append('routineId', routineId);
@@ -227,6 +251,7 @@ export default function UnitDashboard() {
         
         // Form sıfırlama
         setDescription('');
+        setParticipantCount('');
         setProofImage(null);
         const fileInput = document.getElementById('proofImageInput');
         if (fileInput) fileInput.value = '';
@@ -397,7 +422,7 @@ export default function UnitDashboard() {
           )}
 
 
-          {user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && (
+          {isMediaManager && (
             <button 
               onClick={() => triggerTransition(() => setActiveTab('gallery'))} 
               className={`btn ${activeTab === 'gallery' ? 'btn-primary' : 'btn-secondary'}`}
@@ -405,7 +430,7 @@ export default function UnitDashboard() {
               title="Etkinlik Medyası"
             >
               <ImageIcon size={18} />
-              {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Etkinlik Medyası</span>}
+              {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>Etkinlik Medyası {newMediaCount > 0 && <small className="media-new-badge" style={{ marginLeft: '6px', background: '#dc2626', color: '#fff', borderRadius: '999px', padding: '2px 6px' }}>{newMediaCount}</small>}</span>}
             </button>
           )}
 
@@ -785,6 +810,11 @@ export default function UnitDashboard() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label">Katılımcı Sayısı</label>
+                  <input type="number" required min="1" max="100000" placeholder="Örn: 35" value={participantCount} onChange={(e) => setParticipantCount(e.target.value)} className="form-control" style={{ width: '100%' }} />
+                </div>
+
                 {/* Tarih */}
                 <div className="form-group">
                   <label className="form-label">Gerçekleşme Tarihi</label>
@@ -992,7 +1022,7 @@ export default function UnitDashboard() {
         {/* TAB: GALLERY (ETKİNLİK MEDYASI) */}
         {activeTab === 'gallery' && (
           <div className="card" style={{ padding: '20px', minHeight: '500px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
-            <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} onDeleteEvent={handleDeleteEvent} />
+            <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} />
           </div>
         )}
 
@@ -1092,10 +1122,6 @@ export default function UnitDashboard() {
         )}
 
         {activeTab === 'publicPosts' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && <SiteContentManager />}
-        {/* TAB: ETKİNLİK MEDYASI (YALNIZCA MEDYA BAŞKANI) */}
-        {activeTab === 'gallery' && user?.assignedUnit === 'Tanıtım ve Medya Başkanı' && (
-          <EventMediaGallery eventsGallery={eventsGallery} setPreviewImage={setPreviewImage} onDeleteEvent={handleDeleteEvent} />
-        )}
       </main>
 
       {/* Resim İnceleme Modalı */}
@@ -1121,7 +1147,7 @@ export default function UnitDashboard() {
             <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
               <div style={{ backgroundColor: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                 <img
-                  src={getAssetUrl(previewImage.url)}
+                  src={getAssetUrl(previewImage.proofImagePath || previewImage.url)}
                   alt="Büyük Kanıt"
                   style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', display: 'block' }}
                 />
@@ -1152,7 +1178,11 @@ export default function UnitDashboard() {
                   </div>
                   <div>
                     <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarih</span>
-                    <strong style={{ fontSize: '13px' }}>{previewImage.date}</strong>
+                    <strong style={{ fontSize: '13px' }}>{previewImage.eventDate || previewImage.date}</strong>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Katılımcı</span>
+                    <strong style={{ fontSize: '13px' }}>{previewImage.participantCount || 0} kişi</strong>
                   </div>
                 </div>
               </div>
@@ -1166,7 +1196,7 @@ export default function UnitDashboard() {
                   Kapat
                 </button>
                 <a
-                  href={getAssetUrl(previewImage.url)}
+                  href={getAssetUrl(previewImage.proofImagePath || previewImage.url)}
                   download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                   target="_blank"
                   rel="noopener noreferrer"

@@ -39,6 +39,7 @@ export default function SiteLayout({ children }) {
         <nav className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Ana menü">
           <PageLink to="/hakkimizda" onClick={closeMenu}>Kurumsal</PageLink>
           <PageLink to="/calismalarimiz" onClick={closeMenu}>Çalışmalarımız</PageLink>
+          <PageLink to="/etkinlikler" onClick={closeMenu}>Etkinlikler</PageLink>
           <PageLink to="/basarilarimiz" onClick={closeMenu}>Başarılarımız</PageLink>
           <PageLink to="/haberler" onClick={closeMenu}>Haberler</PageLink>
           <PageLink to="/basvuru" onClick={closeMenu}>Muhabbet Okulu</PageLink>
@@ -51,7 +52,7 @@ export default function SiteLayout({ children }) {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div><div className="site-footer-brand"><img src={logoImg} alt="" /><strong>Genç İHH Erzurum</strong></div><p>İyiliği büyüten, sorumluluk alan ve üreten gençlerin yanında.</p></div>
-        <div><h2>İletişim</h2><p><MapPin size={18} /> Yakutiye / Erzurum</p><p><Phone size={18} /> <a href="tel:+905436142525">0 (543) 614 25 25</a></p></div>
+        <div><h2>İletişim</h2><p><a href="https://www.google.com/maps/search/?api=1&query=Erzurum%20IHH%20Insani%20Yardim%20Dernegi%2C%20Muratpasa%20Mahallesi%2C%20Kosk%20Caddesi%20No%3A19%2FA%2C%20Yakutiye%2C%20Erzurum" target="_blank" rel="noopener noreferrer" title="Google Haritalar'da aç" style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8 }}><MapPin size={18} /> Muratpaşa Mahallesi, Köşk Caddesi No:19/A<br />Saraybosna Caddesi üzeri, Yakutiye / Erzurum</a></p><p><Phone size={18} /> <a href="tel:+905436142525">0 (543) 614 25 25</a></p></div>
         <div><h2>Hızlı bağlantılar</h2><PageLink to="/haberler">Haberler</PageLink><PageLink to="/basvuru">Yaz Okulu Başvuru</PageLink><PageLink to="/yonetim">Yetkili Girişi</PageLink></div>
       </div>
       <p className="site-copyright">© {new Date().getFullYear()} Genç İHH Erzurum. Tüm hakları saklıdır.</p>

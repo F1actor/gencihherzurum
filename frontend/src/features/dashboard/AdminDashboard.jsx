@@ -22,6 +22,7 @@ import PerformancePanel from '../reports/PerformancePanel';
 import MonthlyReportPanel from '../reports/MonthlyReportPanel';
 import MuhabbetAdminPanel from '../muhabbet/MuhabbetAdminPanel';
 import VolunteerApplications from '../public/VolunteerApplications';
+import EventApplicationsPanel from './EventApplicationsPanel';
 import { SiteContentManager } from '../public/PublicPosts';
 import { API_URL, getAssetUrl } from '../../shared/config/api';
 
@@ -68,6 +69,12 @@ export default function AdminDashboard() {
   const [newRoutine, setNewRoutine] = useState({ unit: '', title: '', dayOfWeek: '1' });
   const [activeLeaderboardTab, setActiveLeaderboardTab] = useState('weekly'); // 'weekly', 'monthly', 'overall'
   const [previewImage, setPreviewImage] = useState(null);
+  const newMediaCount = eventsGallery.filter((event) => {
+    if (!event.proofImagePath || !event.createdAt) return false;
+    const raw = String(event.createdAt);
+    const created = new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+    return Number.isFinite(created.getTime()) && Date.now() - created.getTime() < 24 * 60 * 60 * 1000;
+  }).length;
   const [eventSearchQuery, setEventSearchQuery] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -83,9 +90,62 @@ export default function AdminDashboard() {
     }
   }, [user]);
 
+  // Yeni etkinlik fotoğrafları için galeri bilgisini arka planda güncel tut.
+  useEffect(() => {
+    const refreshGallery = async () => {
+      try {
+        const response = await fetchWithAuth('/admin/events-gallery');
+        if (response.ok) setEventsGallery(await response.json());
+      } catch (error) {
+        console.error('Galeri yenilenemedi:', error);
+      }
+    };
+    const interval = setInterval(refreshGallery, 60000);
+    return () => clearInterval(interval);
+  }, [fetchWithAuth]);
+
+  // Birim listesini diğer pano isteklerinden bağımsız yükle. Böylece örneğin
+  // rapor isteği hata verdiğinde atama ekranındaki birimler kaybolmaz.
+  const loadUnits = async (notifyOnError = false) => {
+    try {
+      const unitsRes = await fetchWithAuth('/system/units');
+      if (!unitsRes.ok) throw new Error(`Birimler yüklenemedi (${unitsRes.status})`);
+
+      const unitsData = await unitsRes.json();
+      if (!Array.isArray(unitsData)) throw new Error('Geçersiz birim listesi yanıtı');
+
+      const unitsArray = unitsData
+        .map(unit => unit?.name)
+        .filter(name => typeof name === 'string' && name.trim().length > 0);
+
+      setValidUnits(unitsArray);
+      setNewRoutine(prev => ({ ...prev, unit: prev.unit || unitsArray[0] || '' }));
+      return unitsArray;
+    } catch (error) {
+      console.error('Birim listesi yüklenemedi:', error);
+      setValidUnits([]);
+      if (notifyOnError) {
+        showNotification('Birim listesi alınamadı. Lütfen tekrar deneyin.', 'error');
+      }
+      return [];
+    }
+  };
+
+  const handleReloadUnits = async () => {
+    const units = await loadUnits(true);
+    if (units.length > 0) {
+      showNotification(`${units.length} aktif birim yüklendi.`, 'success');
+    } else {
+      showNotification('Atama için önce Sistem > Birimler bölümünden aktif birim eklemelisiniz.', 'warning');
+    }
+  };
+
   const loadDashboardData = async (showOverlay = true) => {
     if (showOverlay) setLoadingScreen(true);
     try {
+      // Atama seçeneği, diğer pano verilerinden etkilenmeden her zaman önce gelsin.
+      await loadUnits();
+
       // 1. Stats and Overview
       const statsRes = await fetchWithAuth('/reports/dashboard-stats');
       if (statsRes.ok) {
@@ -144,15 +204,6 @@ export default function AdminDashboard() {
         setEventsGallery(galleryData);
       }
 
-      // 9. Sistem Birimleri
-      const unitsRes = await fetchWithAuth('/system/units');
-      if (unitsRes.ok) {
-        const unitsData = await unitsRes.json();
-        const unitsArray = unitsData.map(u => u.name);
-        setValidUnits(unitsArray);
-        setNewRoutine(prev => ({ ...prev, unit: prev.unit || unitsArray[0] || '' }));
-      }
-
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
       showNotification('Veriler yüklenirken hata oluştu.', 'error');
@@ -191,6 +242,40 @@ export default function AdminDashboard() {
     } finally {
       setLoadingScreen(false);
     }
+  };
+
+  const handleUpdateUserRole = async (userId) => {
+    const role = selectedRoles[userId];
+    if (!role) return showNotification('Lütfen bir rol seçin.', 'warning');
+
+    setLoadingScreen(true);
+    try {
+      const response = await fetchWithAuth(`/admin/users/${userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role })
+      });
+      const data = await response.json();
+      if (!response.ok) return showNotification(data.message || 'Rol güncellenemedi.', 'error');
+      showNotification(data.message, 'success');
+      loadDashboardData(false);
+    } catch (error) {
+      showNotification('Rol güncellenirken bağlantı hatası oluştu.', 'error');
+    } finally {
+      setLoadingScreen(false);
+    }
+  };
+
+  const handleVolunteerRecipient = async (targetUser) => {
+    try {
+      const response = await fetchWithAuth(`/admin/users/${targetUser.id}/volunteer-recipient`, {
+        method: 'PUT',
+        body: JSON.stringify({ enabled: !targetUser.receivesVolunteerApplications })
+      });
+      const data = await response.json();
+      if (!response.ok) return showNotification(data.message || 'Basvuru alicisi guncellenemedi.', 'error');
+      showNotification(data.message, 'success');
+      loadDashboardData(false);
+    } catch (error) { showNotification('Basvuru alicisi guncellenemedi.', 'error'); }
   };
 
   const handleDeleteUser = (userId, userName) => {
@@ -467,6 +552,7 @@ export default function AdminDashboard() {
         toggleTheme={toggleTheme}
         triggerTransition={triggerTransition}
         handleLogout={handleLogout}
+        newMediaCount={newMediaCount}
       />
 
       {/* Main Content Area */}
@@ -483,6 +569,7 @@ export default function AdminDashboard() {
               {activeTab === 'overview' && 'Yönetim Paneli'}
               {activeTab === 'presidents' && 'Birim Başkanları Listesi'}
               {activeTab === 'volunteers' && 'Gönüllü Başvuruları'}
+              {activeTab === 'eventApplications' && 'Etkinlik Başvuruları'}
               {activeTab === 'reports' && 'Raporlar ve Liderlik'}
               {activeTab === 'tasks' && 'Görevler ve Hedefler'}
               {activeTab === 'audits' && 'Sistem Denetimi ve Pasiflik Uyarıları'}
@@ -517,6 +604,7 @@ export default function AdminDashboard() {
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'volunteers' && <VolunteerApplications />}
+        {activeTab === 'eventApplications' && <EventApplicationsPanel />}
         {activeTab === 'publicPosts' && <SiteContentManager />}
         {activeTab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -635,17 +723,35 @@ export default function AdminDashboard() {
                               <td style={{ padding: '12px 10px', color: 'var(--text-secondary)' }}>{u.email}</td>
                               <td style={{ padding: '12px 10px', color: 'var(--text-secondary)' }}>{u.phoneNumber || 'Belirtilmedi'}</td>
                               <td style={{ padding: '12px 10px' }}>
-                                <select 
-                                  value={selectedUnits[u.id] || ''} 
-                                  onChange={(e) => setSelectedUnits({ ...selectedUnits, [u.id]: e.target.value })}
-                                  className="form-control"
-                                  style={{ padding: '4px 8px', fontSize: '13px' }}
-                                >
-                                  <option value="">Seçiniz...</option>
-                                  {validUnits.map(unit => (
-                                    <option key={unit} value={unit}>{unit}</option>
-                                  ))}
-                                </select>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <select
+                                    value={selectedUnits[u.id] || ''}
+                                    onChange={(e) => setSelectedUnits({ ...selectedUnits, [u.id]: e.target.value })}
+                                    className="form-control"
+                                    disabled={validUnits.length === 0}
+                                    style={{ padding: '4px 8px', fontSize: '13px', minWidth: '150px' }}
+                                  >
+                                    <option value="">{validUnits.length ? 'Seçiniz...' : 'Aktif birim yok'}</option>
+                                    {validUnits.map(unit => (
+                                      <option key={unit} value={unit}>{unit}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={handleReloadUnits}
+                                    className="btn btn-secondary"
+                                    title="Birim listesini yenile"
+                                    aria-label="Birim listesini yenile"
+                                    style={{ padding: '5px 7px', lineHeight: 1 }}
+                                  >
+                                    <RefreshCw size={14} />
+                                  </button>
+                                </div>
+                                {validUnits.length === 0 && (
+                                  <small style={{ display: 'block', marginTop: '5px', color: 'var(--text-muted)' }}>
+                                    Sistem &gt; Birimler'den birim ekleyin veya yenileyin.
+                                  </small>
+                                )}
                                 <select
                                   value={selectedRoles[u.id] || 'UNIT_PRESIDENT'}
                                   onChange={(e) => setSelectedRoles({ ...selectedRoles, [u.id]: e.target.value })}
@@ -653,6 +759,8 @@ export default function AdminDashboard() {
                                   style={{ padding: '4px 8px', fontSize: '12px', marginTop: '6px' }}
                                 >
                                   <option value="UNIT_PRESIDENT">Birim Başkanı</option>
+                                  <option value="IL_BASKANI">İl Başkanı — Tam Sistem Yetkisi</option>
+                                  <option value="IL_TESKILAT_BASKANI">İl Teşkilat Başkanı — Tam Sistem Yetkisi</option>
                                   <option value="MUHABBET_COORDINATOR">Yaz Okulu Koordinatörü</option>
                                   <option value="MUHABBET_TEACHER">Yaz Okulu Hocası</option>
                                 </select>
@@ -819,9 +927,28 @@ export default function AdminDashboard() {
                                      u.role === 'PENDING' ? '#f59e0b' : '#3b82f6'
                             }}>
                               {u.role === 'SUPER_ADMIN' ? 'Süper Admin' : 
+                               u.role === 'IL_BASKANI' ? 'İl Başkanı (Tam Yetki)' :
+                               u.role === 'IL_TESKILAT_BASKANI' ? 'İl Teşkilat Başkanı (Tam Yetki)' :
                                u.role === 'PASSIVE' ? 'Pasif (Eski Bşk.)' :
                                u.role === 'PENDING' ? 'Onay Bekliyor' : 'Birim Başkanı'}
                             </span>
+                            {u.role !== 'PENDING' && u.id !== user?.id && (
+                              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                                <select
+                                  value={selectedRoles[u.id] || u.role}
+                                  onChange={(event) => setSelectedRoles({ ...selectedRoles, [u.id]: event.target.value })}
+                                  className="form-control"
+                                  style={{ minWidth: '160px', padding: '4px 6px', fontSize: '11px' }}
+                                >
+                                  <option value="UNIT_PRESIDENT">Birim Başkanı</option>
+                                  <option value="IL_BASKANI">İl Başkanı — Tam Yetki</option>
+                                  <option value="IL_TESKILAT_BASKANI">İl Teşkilat Başkanı — Tam Yetki</option>
+                                  <option value="MUHABBET_COORDINATOR">Yaz Okulu Koordinatörü</option>
+                                  <option value="MUHABBET_TEACHER">Yaz Okulu Hocası</option>
+                                </select>
+                                <button type="button" className="btn btn-secondary" onClick={() => handleUpdateUserRole(u.id)} style={{ padding: '4px 7px', fontSize: '11px' }}>Kaydet</button>
+                              </div>
+                            )}
                           </td>
                           <td style={{ padding: '12px', fontWeight: '600' }}>
                             {u.assignedUnit || <span style={{ color: 'var(--text-muted)' }}>Atanmadı</span>}
@@ -842,6 +969,14 @@ export default function AdminDashboard() {
                             {new Date(u.createdAt).toLocaleDateString('tr-TR')}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleVolunteerRecipient(u)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 8px', marginRight: '6px', fontSize: '11px', color: u.receivesVolunteerApplications ? '#15803d' : undefined }}
+                              title="Universite gonullu basvurulari e-posta alicisi"
+                            >
+                              {u.receivesVolunteerApplications ? 'Basvuru Alicisi' : 'Alici Yap'}
+                            </button>
                             <button
                               onClick={() => handleDeleteUser(u.id, u.fullName)}
                               className="btn btn-secondary"
@@ -1279,7 +1414,7 @@ export default function AdminDashboard() {
             
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000', borderRadius: 'var(--radius-md)', marginBottom: '15px' }}>
               <img 
-                src={getAssetUrl(previewImage.url)}
+                src={getAssetUrl(previewImage.proofImagePath || previewImage.url)}
                 alt="Kanıt Önizleme" 
                 style={{
                   maxWidth: '100%',
@@ -1317,11 +1452,15 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Kazanılan Puan</span>
-                  <strong style={{ fontSize: '14px', color: 'var(--accent-primary)' }}>+{previewImage.points}</strong>
+                  <strong style={{ fontSize: '14px', color: 'var(--accent-primary)' }}>+{previewImage.pointsEarned ?? previewImage.points} P</strong>
                 </div>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarih</span>
-                  <strong style={{ fontSize: '13px' }}>{previewImage.date}</strong>
+                  <strong style={{ fontSize: '13px' }}>{previewImage.eventDate || previewImage.date}</strong>
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Katılımcı</span>
+                  <strong style={{ fontSize: '13px' }}>{previewImage.participantCount || 0} kişi</strong>
                 </div>
               </div>
             </div>
@@ -1335,7 +1474,7 @@ export default function AdminDashboard() {
                 Kapat
               </button>
               <a
-                href={getAssetUrl(previewImage.url)}
+                href={getAssetUrl(previewImage.proofImagePath || previewImage.url)}
                 download={`kanit_${previewImage.unit.replace(/\s+/g, '_')}.jpg`}
                 target="_blank"
                 rel="noopener noreferrer"

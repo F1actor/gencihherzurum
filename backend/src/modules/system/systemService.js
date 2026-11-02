@@ -110,7 +110,10 @@ exports.transferUnit = async ({ fromUnit, toUnit, presidentId, oldUserId, newUse
       await query.run('UPDATE unit_history SET endDate = ? WHERE userId = ? AND unit = ? AND endDate IS NULL', [new Date().toISOString(), oldUserId, unit]);
       await query.run("UPDATE users SET role = 'PASSIVE', assignedUnit = NULL WHERE id = ?", [oldUserId]);
     }
-    await query.run("UPDATE users SET role = 'UNIT_PRESIDENT', assignedUnit = ? WHERE id = ? AND role != 'SUPER_ADMIN'", [unit, newUserId]);
+    await query.run(
+      "UPDATE users SET role = CASE WHEN role IN ('SUPER_ADMIN', 'IL_BASKANI', 'IL_TESKILAT_BASKANI') THEN role ELSE 'UNIT_PRESIDENT' END, assignedUnit = ? WHERE id = ?",
+      [unit, newUserId]
+    );
     await query.run('INSERT INTO unit_history (unit, userId, fullName, startDate, reason) VALUES (?, ?, ?, ?, ?)', [unit, nextUser.id, nextUser.fullName, new Date().toISOString(), reason || 'Birim devri']);
     return;
   }

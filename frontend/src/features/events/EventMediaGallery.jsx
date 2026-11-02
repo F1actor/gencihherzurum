@@ -1,188 +1,99 @@
-import React, { useState } from 'react';
-import { Search, Image as ImageIcon, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BellRing, CalendarDays, ChevronDown, ChevronRight, Folder, Image as ImageIcon, Search, Trash2, Users } from 'lucide-react';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { getAssetUrl } from '../../shared/config/api';
 
-export default function EventMediaGallery({ eventsGallery, setPreviewImage, onDeleteEvent }) {
+const isNewMedia = (createdAt) => {
+  if (!createdAt) return false;
+  const raw = String(createdAt);
+  const created = new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+  return Number.isFinite(created.getTime()) && Date.now() - created.getTime() < 24 * 60 * 60 * 1000;
+};
+
+const formatDateTime = (value) => {
+  if (!value) return 'Bilinmiyor';
+  const raw = String(value);
+  const date = new Date(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
+    : value;
+};
+
+export default function EventMediaGallery({ eventsGallery = [], setPreviewImage, onDeleteEvent }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryTypeFilter, setGalleryTypeFilter] = useState('ALL');
-  const [galleryProofFilter, setGalleryProofFilter] = useState('WITH_PROOF');
+  const [openFolders, setOpenFolders] = useState({});
   const { showConfirm } = useNotification();
 
-  const filtered = eventsGallery.filter(ev => {
-    const searchLower = gallerySearch.toLowerCase();
-    const matchSearch = !gallerySearch ||
-      ev.title.toLowerCase().includes(searchLower) ||
-      ev.unit.toLowerCase().includes(searchLower) ||
-      ev.presidentName?.toLowerCase().includes(searchLower);
-    const matchType = galleryTypeFilter === 'ALL' || ev.type === galleryTypeFilter;
-    const matchProof = galleryProofFilter === 'ALL'
-      ? true
-      : galleryProofFilter === 'WITH_PROOF'
-        ? !!ev.proofImagePath
-        : !ev.proofImagePath;
-    return matchSearch && matchType && matchProof;
-  });
+  const filtered = useMemo(() => eventsGallery.filter((event) => {
+    if (!event.proofImagePath) return false;
+    const search = gallerySearch.trim().toLocaleLowerCase('tr-TR');
+    const matchesSearch = !search || [event.title, event.description, event.unit, event.presidentName]
+      .filter(Boolean)
+      .some((value) => String(value).toLocaleLowerCase('tr-TR').includes(search));
+    return matchesSearch && (galleryTypeFilter === 'ALL' || event.type === galleryTypeFilter);
+  }), [eventsGallery, gallerySearch, galleryTypeFilter]);
+
+  const folders = useMemo(() => {
+    const grouped = filtered.reduce((result, event) => {
+      const unit = event.unit || 'Birimi belirtilmemiş';
+      result[unit] ||= [];
+      result[unit].push(event);
+      return result;
+    }, {});
+    return Object.entries(grouped).sort(([first], [second]) => first.localeCompare(second, 'tr'));
+  }, [filtered]);
+
+  const newMediaCount = filtered.filter((event) => isNewMedia(event.createdAt)).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Filter Bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {newMediaCount > 0 && (
+        <div className="media-new-alert" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.42)', color: '#9a5a00', fontWeight: 700 }}>
+          <BellRing size={19} /> Son 24 saatte <strong>{newMediaCount}</strong> yeni fotoğraf eklendi.
+        </div>
+      )}
+
       <div className="card" style={{ padding: '16px 20px', textAlign: 'left' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Search */}
-          <div style={{ position: 'relative', flex: '1 1 220px' }}>
+          <div style={{ position: 'relative', flex: '1 1 240px' }}>
             <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Başlık, birim veya kişi ara..."
-              value={gallerySearch}
-              onChange={e => setGallerySearch(e.target.value)}
-              className="form-control"
-              style={{ paddingLeft: '32px', fontSize: '13px', height: '42px' }}
-            />
+            <input type="text" placeholder="Birim, etkinlik, açıklama veya gönderen ara..." value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} className="form-control" style={{ paddingLeft: '32px', fontSize: '13px', height: '42px' }} />
           </div>
-
-          {/* Type Filter */}
-          <select
-            value={galleryTypeFilter}
-            onChange={e => setGalleryTypeFilter(e.target.value)}
-            className="form-control"
-            style={{ fontSize: '13px', height: '42px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
-          >
-            <option value="ALL">Tüm Türler</option>
-            <option value="ROUTINE">Yalnızca Rutin</option>
-            <option value="EXTRA">Yalnızca Ekstra</option>
+          <select value={galleryTypeFilter} onChange={(event) => setGalleryTypeFilter(event.target.value)} className="form-control" style={{ fontSize: '13px', height: '42px', width: 'auto' }}>
+            <option value="ALL">Tüm türler</option><option value="ROUTINE">Rutin görev</option><option value="EXTRA">Ekstra etkinlik</option><option value="TARGET">Aylık hedef</option>
           </select>
-
-          {/* Proof Filter */}
-          <select
-            value={galleryProofFilter}
-            onChange={e => setGalleryProofFilter(e.target.value)}
-            className="form-control"
-            style={{ fontSize: '13px', height: '42px', width: 'auto', minWidth: '145px', flexShrink: 0 }}
-          >
-            <option value="ALL">Tüm Kayıtlar</option>
-            <option value="WITH_PROOF">Fotoğraflı</option>
-            <option value="WITHOUT_PROOF">Fotoğrafsız</option>
-          </select>
-
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-            <strong style={{ color: 'var(--accent-primary)' }}>{filtered.length}</strong> kayıt gösteriliyor
-          </span>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: 'auto' }}><strong style={{ color: 'var(--accent-primary)' }}>{filtered.length}</strong> fotoğraf · <strong>{folders.length}</strong> birim klasörü</span>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ textAlign: 'left', padding: 0, overflow: 'hidden' }}>
-        {filtered.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <ImageIcon size={48} style={{ opacity: 0.2, marginBottom: '15px', display: 'block', margin: '0 auto 15px' }} />
-            <p>Gösterilecek etkinlik kaydı bulunamadı.</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fotoğraf</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Etkinlik</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gönderen</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Birim</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tür</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarih</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Puan</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>İşlem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((ev, idx) => (
-                  <tr
-                    key={ev.id}
-                    style={{
-                      borderBottom: '1px solid var(--border-color)',
-                      backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)',
-                      transition: 'background-color 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)'}
-                  >
-                    {/* Thumbnail */}
-                    <td style={{ padding: '10px 16px' }}>
-                      {ev.proofImagePath ? (
-                        <img
-                          src={getAssetUrl(ev.proofImagePath)}
-                          alt="Kanıt"
-                          style={{
-                            width: '64px', height: '64px', objectFit: 'cover',
-                            borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                            border: '2px solid var(--border-color)',
-                            transition: 'transform 0.2s, border-color 0.2s'
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                          onClick={() => setPreviewImage({ url: ev.proofImagePath, title: ev.title, unit: ev.unit, sender: ev.presidentName, date: ev.eventDate })}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '64px', height: '64px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-tertiary)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'var(--text-muted)'
-                        }}>Yok</div>
-                      )}
-                    </td>
-                    {/* Event Info */}
-                    <td style={{ padding: '12px 16px' }}>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--text-primary)' }}>{ev.title}</h4>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ev.description || 'Açıklama yok'}
-                      </p>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '500' }}>{ev.presidentName || 'Bilinmiyor'}</td>
-                    <td style={{ padding: '12px 16px', fontSize: '13px' }}>{ev.unit}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <span style={{
-                        backgroundColor: ev.type === 'ROUTINE' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(91, 128, 54, 0.1)',
-                        color: ev.type === 'ROUTINE' ? '#3b82f6' : '#5b8036',
-                        padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block'
-                      }}>
-                        {ev.type === 'ROUTINE' ? 'Rutin Görev' : 'Ekstra Görev'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>{ev.eventDate}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)' }}>+{ev.pointsEarned} P</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                        {ev.proofImagePath && (
-                          <button
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => setPreviewImage({ url: ev.proofImagePath, title: ev.title, unit: ev.unit, sender: ev.presidentName, date: ev.eventDate })}
-                          >
-                            İncele
-                          </button>
-                        )}
-                        {onDeleteEvent && (
-                          <button
-                            className="btn btn-icon"
-                            style={{ background: 'transparent', padding: '6px' }}
-                            title="Etkinliği Sil"
-                            onClick={() => {
-                              showConfirm('Bu etkinliği ve kazandırdığı puanı silmek istediğinize emin misiniz?', () => {
-                                onDeleteEvent(ev.id);
-                              });
-                            }}
-                          >
-                            <Trash2 size={16} className="text-danger" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {folders.length === 0 ? (
+        <div className="card" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-muted)' }}><ImageIcon size={48} style={{ opacity: 0.25, marginBottom: '12px' }} /><p style={{ margin: 0 }}>Aramanıza uygun fotoğraflı etkinlik bulunamadı.</p></div>
+      ) : folders.map(([unit, events]) => {
+        const isOpen = openFolders[unit] !== false;
+        const unitNewCount = events.filter((event) => isNewMedia(event.createdAt)).length;
+        return <section key={unit} className="card" style={{ padding: 0, overflow: 'hidden', textAlign: 'left' }}>
+          <button type="button" onClick={() => setOpenFolders((current) => ({ ...current, [unit]: !isOpen }))} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '16px 20px', border: 0, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left' }}>
+            {isOpen ? <ChevronDown size={19} /> : <ChevronRight size={19} />}<Folder size={20} style={{ color: 'var(--accent-primary)' }} /><strong style={{ fontSize: '15px' }}>{unit}</strong><span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>({events.length} fotoğraf)</span>
+            {unitNewCount > 0 && <span className="media-new-badge" style={{ marginLeft: 'auto', background: '#dc2626', color: '#fff', borderRadius: '999px', padding: '3px 8px', fontSize: '11px', fontWeight: 800 }}>{unitNewCount} yeni</span>}
+          </button>
+          {isOpen && <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))', gap: '14px' }}>
+            {events.map((event) => <article key={event.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-secondary)', position: 'relative' }}>
+              {isNewMedia(event.createdAt) && <span className="media-new-badge" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1, background: '#dc2626', color: '#fff', borderRadius: '999px', padding: '4px 9px', fontSize: '11px', fontWeight: 800 }}>YENİ</span>}
+              <button type="button" onClick={() => setPreviewImage({ ...event })} style={{ display: 'block', width: '100%', padding: 0, border: 0, background: '#111', cursor: 'pointer' }} title="Fotoğrafı incele"><img src={getAssetUrl(event.proofImagePath)} alt={`${event.unit} - ${event.title}`} style={{ display: 'block', width: '100%', height: '185px', objectFit: 'cover' }} /></button>
+              <div style={{ padding: '14px' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '15px' }}>{event.title}</h4><p style={{ minHeight: '38px', margin: '0 0 12px', color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.45 }}>{event.description || 'Açıklama girilmedi.'}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <span style={{ display: 'flex', gap: '5px', alignItems: 'center' }}><Users size={14} /> {event.participantCount || 0} katılımcı</span><span style={{ display: 'flex', gap: '5px', alignItems: 'center' }}><CalendarDays size={14} /> {event.eventDate}</span>
+                  <span style={{ gridColumn: '1 / -1' }}>Gönderen: <strong style={{ color: 'var(--text-primary)' }}>{event.presidentName || 'Bilinmiyor'}</strong></span><span style={{ gridColumn: '1 / -1' }}>Yükleme: {formatDateTime(event.createdAt)}</span>
+                </div>
+                {onDeleteEvent && <button type="button" className="btn btn-secondary" style={{ width: '100%', marginTop: '12px', color: 'var(--status-danger)', justifyContent: 'center' }} onClick={() => showConfirm('Bu etkinlik kaydını silmek istediğinize emin misiniz?', () => onDeleteEvent(event.id))}><Trash2 size={15} /> Kaydı sil</button>}
+              </div>
+            </article>)}
+          </div>}
+        </section>;
+      })}
+      <style>{`@keyframes mediaPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .65; transform: scale(1.03); } } .media-new-alert, .media-new-badge { animation: mediaPulse 1.4s ease-in-out infinite; }`}</style>
     </div>
   );
 }

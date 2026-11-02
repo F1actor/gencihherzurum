@@ -18,6 +18,20 @@ exports.assignUnit = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.updateUserRole = async (req, res, next) => {
+  try {
+    const user = await adminService.updateUserRole({ userId: req.params.id, role: req.body.role, requesterId: req.user.id });
+    return res.status(200).json({ message: `${user.fullName} kullanıcısının rolü güncellendi.` });
+  } catch (err) { next(err); }
+};
+
+exports.setVolunteerRecipient = async (req, res, next) => {
+  try {
+    const user = await adminService.setVolunteerRecipient({ userId: req.params.id, enabled: req.body?.enabled });
+    return res.status(200).json({ message: user.receivesVolunteerApplications ? `${user.fullName} universite basvurulari alicisi oldu.` : `${user.fullName} basvuru aliciligindan kaldirildi.` });
+  } catch (err) { next(err); }
+};
+
 exports.getUsers = async (req, res, next) => {
   try {
     const users = await adminService.getUsers();

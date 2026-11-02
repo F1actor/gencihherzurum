@@ -18,7 +18,7 @@ exports.getPendingUsers = async () => {
 
 exports.getUsers = async () => {
   return query.all(
-    "SELECT id, fullName, email, phoneNumber, role, assignedUnit, isEmailVerified, createdAt FROM users WHERE email != 'admin@gencihh.org' ORDER BY role ASC, id DESC"
+    "SELECT id, fullName, email, phoneNumber, role, assignedUnit, isEmailVerified, receivesVolunteerApplications, createdAt FROM users WHERE email != 'admin@gencihh.org' ORDER BY role ASC, id DESC"
   );
 };
 
@@ -30,7 +30,7 @@ exports.assignUnit = async ({ userId, unit, role = 'UNIT_PRESIDENT' }) => {
   if (!user) throw new AppError('Kullanıcı bulunamadı.', 404);
 
   const existingPresident = await query.get('SELECT fullName FROM users WHERE assignedUnit = ? AND id != ?', [unit, userId]);
-  const allowedRoles = ['UNIT_PRESIDENT', 'MUHABBET_COORDINATOR', 'MUHABBET_TEACHER'];
+  const allowedRoles = ['UNIT_PRESIDENT', 'MUHABBET_COORDINATOR', 'MUHABBET_TEACHER', 'IL_BASKANI', 'IL_TESKILAT_BASKANI'];
   const assignedRole = allowedRoles.includes(role) ? role : 'UNIT_PRESIDENT';
 
   await query.run('UPDATE users SET role = ?, assignedUnit = ? WHERE id = ?', [assignedRole, unit, userId]);
@@ -44,6 +44,8 @@ exports.assignUnit = async ({ userId, unit, role = 'UNIT_PRESIDENT' }) => {
 
   const roleLabel = {
     SUPER_ADMIN: 'Süper Admin',
+    IL_BASKANI: 'İl Başkanı',
+    IL_TESKILAT_BASKANI: 'İl Teşkilat Başkanı',
     MUHABBET_COORDINATOR: 'Yaz Okulu Koordinatörü',
     MUHABBET_TEACHER: 'Yaz Okulu Hocası'
   }[assignedRole] || 'Birim Başkanı';
@@ -51,6 +53,25 @@ exports.assignUnit = async ({ userId, unit, role = 'UNIT_PRESIDENT' }) => {
   let message = `${user.fullName} kullanıcısı ${unit} olarak atandı ve ${roleLabel} yetkileri tanımlandı.`;
   if (existingPresident) message += ` Not: Bu birimde daha önce ${existingPresident.fullName} atanmıştı.`;
   return message;
+};
+
+exports.updateUserRole = async ({ userId, role, requesterId }) => {
+  if (Number(userId) === Number(requesterId)) throw new AppError('Kendi yetkinizi bu ekrandan değiştiremezsiniz.', 400);
+  const user = await query.get('SELECT id, fullName, assignedUnit FROM users WHERE id = ?', [userId]);
+  if (!user) throw new AppError('Kullanıcı bulunamadı.', 404);
+
+  await query.run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
+  await query.run("INSERT INTO audits (logType, message) VALUES ('SYSTEM', ?)", [`Rol Güncellendi: ${user.fullName} -> ${role}`]);
+  return user;
+};
+
+exports.setVolunteerRecipient = async ({ userId, enabled }) => {
+  const user = await query.get('SELECT id, fullName, isEmailVerified FROM users WHERE id = ?', [userId]);
+  if (!user) throw new AppError('Kullanici bulunamadi.', 404);
+  if (user.isEmailVerified !== 1) throw new AppError('E-posta dogrulamasi tamamlanmamis kullanici basvuru alicisi olamaz.', 400);
+  if (enabled) await query.run('UPDATE users SET receivesVolunteerApplications = 0');
+  await query.run('UPDATE users SET receivesVolunteerApplications = ? WHERE id = ?', [enabled ? 1 : 0, userId]);
+  return { ...user, receivesVolunteerApplications: Boolean(enabled) };
 };
 
 exports.getRoutines = async () => {
@@ -86,7 +107,7 @@ exports.deleteUser = async ({ userId, requesterId }) => {
 
 exports.getAllEventsWithProofs = async () => {
   return query.all(
-    `SELECT e.id, e.title, e.description, e.type, e.unit, e.eventDate, e.pointsEarned, e.proofImagePath, e.createdAt,
+    `SELECT e.id, e.title, e.description, e.participantCount, e.type, e.unit, e.eventDate, e.pointsEarned, e.proofImagePath, e.createdAt,
             u.fullName as presidentName, u.email as presidentEmail
      FROM events e
      JOIN users u ON e.userId = u.id

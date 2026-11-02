@@ -12,6 +12,8 @@ router.use(requireRole('SUPER_ADMIN'));
 
 router.get('/pending-users', adminController.getPendingUsers);
 router.post('/assign-unit', adminValidator.validateAssignUnit, adminController.assignUnit);
+router.put('/users/:id/role', adminValidator.validateUpdateUserRole, adminController.updateUserRole);
+router.put('/users/:id/volunteer-recipient', adminController.setVolunteerRecipient);
 router.get('/routines', adminController.getRoutines);
 router.post('/routines', adminValidator.validateCreateRoutine, adminController.createRoutine);
 router.delete('/routines/:id', adminController.deleteRoutine);

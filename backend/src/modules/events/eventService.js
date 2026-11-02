@@ -3,16 +3,21 @@ const AppError = require('../../core/errors/AppError');
 const path = require('path');
 const { uploadDirectory } = require('../../config/uploads');
 const fs = require('fs');
+const { hasSystemAdminAccess } = require('../../core/accessPolicy');
 
 /**
  * Event Service — Etkinlik iş mantığı katmanı.
  */
 
-exports.createEvent = async ({ type, routineId, title, description, eventDate, targetId, proofImagePath, user }) => {
+exports.createEvent = async ({ type, routineId, title, description, eventDate, targetId, participantCount, proofImagePath, user }) => {
   if (!type || !title || !eventDate) throw new AppError('Etkinlik türü, başlığı ve tarihi zorunludur.', 400);
   if (type === 'ROUTINE' && !routineId) throw new AppError('Rutin etkinlikler için rutin seçimi zorunludur.', 400);
   if (type === 'TARGET' && !targetId) throw new AppError('Aylık hedef etkinlikleri için hedef seçimi zorunludur.', 400);
   if (isNaN(new Date(eventDate).getTime())) throw new AppError('Geçersiz etkinlik tarihi.', 400);
+  const participantTotal = Number.parseInt(participantCount, 10);
+  if (!Number.isInteger(participantTotal) || participantTotal < 1 || participantTotal > 100000) {
+    throw new AppError('Katılımcı sayısı 1 ile 100000 arasında olmalıdır.', 400);
+  }
 
   let pointsEarned = 0;
   if (type === 'EXTRA') pointsEarned = 20;
@@ -26,18 +31,18 @@ exports.createEvent = async ({ type, routineId, title, description, eventDate, t
   }
 
   const result = await query.run(
-    `INSERT INTO events (userId, unit, type, routineId, targetId, title, description, eventDate, proofImagePath, pointsEarned)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO events (userId, unit, type, routineId, targetId, title, description, participantCount, eventDate, proofImagePath, pointsEarned)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user.id, user.assignedUnit, type,
      type === 'ROUTINE' ? parseInt(routineId) : null,
      type === 'TARGET' ? parseInt(targetId) : null,
-     title, description || '', eventDate, proofImagePath, pointsEarned]
+     title, description || '', participantTotal, eventDate, proofImagePath, pointsEarned]
   );
 
   await query.run("INSERT INTO audits (logType, message) VALUES ('SYSTEM', ?)",
     [`Etkinlik Eklendi: ${user.assignedUnit} - ${title} (Puan: ${pointsEarned})`]);
 
-  return { id: result.id, title, type, pointsEarned, proofImagePath };
+  return { id: result.id, title, type, participantCount: participantTotal, pointsEarned, proofImagePath };
 };
 
 exports.getMyEvents = async (userId) => {
@@ -67,9 +72,9 @@ exports.getAllEvents = async ({ unit, type } = {}) => {
 exports.updateEvent = async ({ id, title, description, eventDate, proofImagePath, user }) => {
   const event = await query.get('SELECT * FROM events WHERE id = ?', [id]);
   if (!event) throw new AppError('Etkinlik bulunamadı.', 404);
-  if (event.userId !== user.id && user.role !== 'SUPER_ADMIN') throw new AppError('Bu etkinliği düzenleme yetkiniz yok.', 403);
+  if (event.userId !== user.id && !hasSystemAdminAccess(user.role)) throw new AppError('Bu etkinliği düzenleme yetkiniz yok.', 403);
 
-  if (user.role !== 'SUPER_ADMIN') {
+  if (!hasSystemAdminAccess(user.role)) {
     const diffHours = (Date.now() - new Date(event.createdAt).getTime()) / (1000 * 60 * 60);
     if (diffHours > 24) throw new AppError('Etkinlikler yalnızca eklendikten sonraki 24 saat içinde düzenlenebilir.', 403);
   }
@@ -91,7 +96,7 @@ exports.deleteEvent = async ({ id, user }) => {
   const event = await query.get('SELECT * FROM events WHERE id = ?', [id]);
   if (!event) throw new AppError('Etkinlik bulunamadı.', 404);
 
-  if (user.role !== 'SUPER_ADMIN') {
+  if (!hasSystemAdminAccess(user.role)) {
     if (event.userId !== user.id) throw new AppError('Bu etkinliği silme yetkiniz yok.', 403);
     const createdAtStr = event.createdAt.includes('T') ? event.createdAt : event.createdAt.replace(' ', 'T') + 'Z';
     const diffHours = (Date.now() - new Date(createdAtStr).getTime()) / (1000 * 60 * 60);

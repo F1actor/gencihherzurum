@@ -138,8 +138,22 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS volunteer_applications (
         id INT AUTO_INCREMENT PRIMARY KEY, fullName VARCHAR(255) NOT NULL, phoneNumber VARCHAR(50) NOT NULL,
-        university VARCHAR(255) NOT NULL, faculty VARCHAR(255) NOT NULL, grade VARCHAR(100) NOT NULL,
+        educationStatus VARCHAR(60) NOT NULL DEFAULT 'UNIVERSITY_STUDENT', university VARCHAR(255) NULL, faculty VARCHAR(255) NULL,
+        department VARCHAR(255) NULL, grade VARCHAR(100) NULL, employmentStatus VARCHAR(40) NULL, applicationStatus VARCHAR(40) NOT NULL DEFAULT 'NEW',
+        statusNote VARCHAR(1000) NULL, forwardedToUserId INT NULL, forwardedAt DATETIME NULL, kvkkAccepted TINYINT(1) NOT NULL DEFAULT 0,
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS application_events (
+        id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL, description TEXT NULL, eventDate VARCHAR(10) NULL,
+        eventTime VARCHAR(20) NULL, location VARCHAR(255) NULL, isActive TINYINT(1) NOT NULL DEFAULT 0,
+        createdBy INT NULL, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+      `CREATE TABLE IF NOT EXISTS application_event_entries (
+        id INT AUTO_INCREMENT PRIMARY KEY, eventId INT NOT NULL, fullName VARCHAR(255) NOT NULL, phoneNumber VARCHAR(50) NOT NULL,
+        educationStatus VARCHAR(60) NOT NULL, university VARCHAR(255) NULL, faculty VARCHAR(255) NULL, department VARCHAR(255) NULL,
+        grade VARCHAR(100) NULL, employmentStatus VARCHAR(40) NULL, kvkkAccepted TINYINT(1) NOT NULL DEFAULT 0, createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_application_event_entries_event (eventId)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS muhabbet_students (
         id INT AUTO_INCREMENT PRIMARY KEY, childName VARCHAR(255) NOT NULL, parentName VARCHAR(255) NOT NULL, address TEXT NOT NULL,
@@ -173,6 +187,18 @@ async function initDatabase() {
     await ensureColumn('users', 'resetOtpExpiresAt', 'VARCHAR(64) NULL');
     await ensureColumn('events', 'status', "VARCHAR(30) NOT NULL DEFAULT 'APPROVED'");
     await ensureColumn('events', 'targetId', 'INT NULL');
+    await ensureColumn('events', 'participantCount', 'INT NOT NULL DEFAULT 0');
+    await ensureColumn('volunteer_applications', 'educationStatus', "VARCHAR(60) NOT NULL DEFAULT 'UNIVERSITY_STUDENT'");
+    await ensureColumn('volunteer_applications', 'department', 'VARCHAR(255) NULL');
+    await ensureColumn('volunteer_applications', 'employmentStatus', 'VARCHAR(40) NULL');
+    await ensureColumn('volunteer_applications', 'applicationStatus', "VARCHAR(40) NOT NULL DEFAULT 'NEW'");
+    await ensureColumn('volunteer_applications', 'statusNote', 'VARCHAR(1000) NULL');
+    await ensureColumn('volunteer_applications', 'forwardedToUserId', 'INT NULL');
+    await ensureColumn('volunteer_applications', 'forwardedAt', 'DATETIME NULL');
+    await ensureColumn('volunteer_applications', 'kvkkAccepted', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn('users', 'receivesVolunteerApplications', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn('application_event_entries', 'employmentStatus', 'VARCHAR(40) NULL');
+    await ensureIndex('volunteer_applications', 'idx_volunteer_status_date', '`applicationStatus`, `createdAt`');
     await ensureColumn('targets', 'targetName', 'VARCHAR(255) NULL');
     await ensureColumn('targets', 'targetPoints', 'INT NOT NULL DEFAULT 0');
     await ensureIndex('events', 'idx_events_user_date', '`userId`, `eventDate`');

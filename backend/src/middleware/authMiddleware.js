@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const { hasSystemAdminAccess } = require('../core/accessPolicy');
 
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -36,7 +37,9 @@ function requireRole(roles) {
       return res.status(401).json({ message: 'Kimlik doğrulaması başarısız.' });
     }
 
-    const hasRole = Array.isArray(roles) ? roles.includes(req.user.role) : req.user.role === roles;
+    const requiredRoles = Array.isArray(roles) ? roles : [roles];
+    const hasRole = requiredRoles.includes(req.user.role)
+      || (requiredRoles.includes('SUPER_ADMIN') && hasSystemAdminAccess(req.user.role));
     
     if (!hasRole) {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır.' });

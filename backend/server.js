@@ -18,6 +18,7 @@ const muhabbetRoutes = require('./src/modules/muhabbet/muhabbetRoutes');
 const volunteerRoutes = require('./src/modules/volunteer/volunteerRoutes');
 const publicPostRoutes = require('./src/modules/publicPosts/publicPostRoutes');
 const newsRoutes = require('./src/modules/news/newsRoutes');
+const applicationEventRoutes = require('./src/modules/applicationEvents/applicationEventRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,6 +44,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 }));
 app.use('/api/muhabbet/apply', createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 }));
 app.use('/api/volunteers', createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30 }));
+app.use('/api/application-events', createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30 }));
 
 // Uploads (kanıt resimleri) static olarak sun
 app.use('/uploads', express.static(uploadDirectory));
@@ -58,6 +60,7 @@ app.use('/api/muhabbet', muhabbetRoutes);
 app.use('/api/volunteers', volunteerRoutes);
 app.use('/api/public-posts', publicPostRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/application-events', applicationEventRoutes);
 
 // Sağlık kontrolü
 app.get('/health', (req, res) => {

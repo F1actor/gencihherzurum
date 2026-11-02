@@ -5,11 +5,11 @@ import logoImg from '../../../assets/logo.jpg';
 /**
  * Sidebar — Admin paneli sol menü bileşeni.
  * Props: user, activeTab, setActiveTab, isSidebarCollapsed, setIsSidebarCollapsed,
- *         theme, toggleTheme, triggerTransition, handleLogout
+ *         theme, toggleTheme, triggerTransition, handleLogout, newMediaCount
  */
 export default function Sidebar({
   user, activeTab, isSidebarCollapsed, setIsSidebarCollapsed,
-  theme, toggleTheme, triggerTransition, handleLogout, setActiveTab
+  theme, toggleTheme, triggerTransition, handleLogout, setActiveTab, newMediaCount = 0
 }) {
   const isCoordinator = user?.role === 'MUHABBET_COORDINATOR';
   const disabledStyle = { opacity: 0.35, cursor: 'not-allowed', pointerEvents: 'none' };
@@ -18,6 +18,7 @@ export default function Sidebar({
     { id: 'overview', icon: <Shield size={18} />, label: 'Genel Panel' },
     { id: 'presidents', icon: <Users size={18} />, label: 'Birim Başkanları' },
     { id: 'volunteers', icon: <Users size={18} />, label: 'Gönüllü Başvuruları' },
+    { id: 'eventApplications', icon: <Calendar size={18} />, label: 'Etkinlik Başvuruları' },
     { id: 'reports', icon: <BarChart2 size={18} />, label: 'Raporlar' },
     { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Görevler' },
     { id: 'audits', icon: <Bell size={18} />, label: 'Denetim & Pasiflik' },
@@ -90,6 +91,7 @@ export default function Sidebar({
               >
                 {item.icon}
                 {!isSidebarCollapsed && <span style={{ marginLeft: '10px' }}>{item.label}</span>}
+                {item.id === 'gallery' && newMediaCount > 0 && <span className="sidebar-media-badge" style={{ marginLeft: 'auto', background: '#dc2626', color: '#fff', borderRadius: '999px', minWidth: '20px', padding: '2px 6px', fontSize: '11px', fontWeight: 800 }}>{newMediaCount}</span>}
               </button>
             );
           })}
@@ -141,6 +143,7 @@ export default function Sidebar({
           {!isSidebarCollapsed && <span>Çıkış Yap</span>}
         </button>
       </div>
+      <style>{`@keyframes sidebarMediaPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } } .sidebar-media-badge { animation: sidebarMediaPulse 1.2s ease-in-out infinite; }`}</style>
     </aside>
   );
 }

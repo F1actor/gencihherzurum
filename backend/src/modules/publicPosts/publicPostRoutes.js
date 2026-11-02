@@ -6,13 +6,14 @@ const crypto = require('crypto');
 const { query } = require('../../config/database');
 const { authenticateToken } = require('../../middleware/authMiddleware');
 const { uploadDirectory } = require('../../config/uploads');
+const { hasSystemAdminAccess } = require('../../core/accessPolicy');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
 const directory = uploadDirectory;
 const categories = new Set(['Faaliyetler', 'Eğitim', 'Gönüllülük', 'Sosyal Sorumluluk', 'Başarılar', 'Duyurular']);
 const canManage = (req, res, next) => {
-  if (req.user.role === 'SUPER_ADMIN' || (req.user.role === 'UNIT_PRESIDENT' && req.user.assignedUnit === 'Tanıtım ve Medya Başkanı')) return next();
+  if (hasSystemAdminAccess(req.user.role) || (req.user.role === 'UNIT_PRESIDENT' && req.user.assignedUnit === 'Tanıtım ve Medya Başkanı')) return next();
   return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' });
 };
 function imageExtension(buffer) {

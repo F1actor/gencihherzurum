@@ -161,8 +161,24 @@ async function sendWeeklySummaryEmail(toEmail, summaryData) {
   }
 }
 
+async function sendVolunteerForwardEmail(toEmail, recipientName, application) {
+  const mailTransporter = await initTransporter();
+  if (!mailTransporter) {
+    if (process.env.NODE_ENV === 'production') throw new Error('SMTP yapilandirmasi kullanilamiyor.');
+    return;
+  }
+  const safe = value => escapeHtml(value || 'Belirtilmedi');
+  await mailTransporter.sendMail({
+    from: process.env.SMTP_FROM || '"Genc IHH Erzurum" <no-reply@gencihh.org>',
+    to: toEmail,
+    subject: 'Yeni universiteli gonullu basvurusu',
+    html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;color:#1e293b"><h2 style="color:#1b5e20">Yeni gonullu iletisi</h2><p>Merhaba ${safe(recipientName)}, size yeni bir universiteli gonullu basvurusu iletildi.</p><table style="border-collapse:collapse;width:100%"><tr><td><b>Ad soyad</b></td><td>${safe(application.fullName)}</td></tr><tr><td><b>Telefon</b></td><td>${safe(application.phoneNumber)}</td></tr><tr><td><b>Universite</b></td><td>${safe(application.university)}</td></tr><tr><td><b>Fakulte / Bolum</b></td><td>${safe(application.faculty)} / ${safe(application.department)}</td></tr><tr><td><b>Sinif</b></td><td>${safe(application.grade)}</td></tr></table><p style="color:#64748b">Basvurunun ayrintilari yonetim panelinde kayitlidir.</p></div>`
+  });
+}
+
 module.exports = {
   sendOtpEmail,
-  sendWeeklySummaryEmail
+  sendWeeklySummaryEmail,
+  sendVolunteerForwardEmail
 };
 

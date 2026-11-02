@@ -1,5 +1,6 @@
 const { query } = require('../../config/database');
 const AppError = require('../../core/errors/AppError');
+const { hasSystemAdminAccess } = require('../../core/accessPolicy');
 
 /**
  * Muhabbet Service — Muhabbet Okulu iş mantığı katmanı.
@@ -46,7 +47,7 @@ exports.getMyClass = async (teacherId) => {
 };
 
 exports.assertClassAccess = async (user, classId) => {
-  if (['SUPER_ADMIN', 'MUHABBET_COORDINATOR'].includes(user.role)) return;
+  if (hasSystemAdminAccess(user.role) || user.role === 'MUHABBET_COORDINATOR') return;
   if (user.role !== 'MUHABBET_TEACHER') throw new AppError('Bu sınıfa erişim yetkiniz yok.', 403);
   const classData = await query.get('SELECT id FROM muhabbet_classes WHERE id = ? AND teacherId = ?', [classId, user.id]);
   if (!classData) throw new AppError('Bu sınıfa erişim yetkiniz yok.', 403);
@@ -56,14 +57,14 @@ exports.createClass = async ({ name, ageGroup, teacherId }) => {
   const insertSql = 'INSERT INTO muhabbet_classes (name, ageGroup, teacherId) VALUES (?, ?, ?)';
   await query.run(insertSql, [name, ageGroup, teacherId || null]);
   if (teacherId) {
-    await query.run("UPDATE users SET role = 'MUHABBET_TEACHER', assignedUnit = 'Yaz Okulu Hocası' WHERE id = ? AND role != 'SUPER_ADMIN'", [teacherId]);
+    await query.run("UPDATE users SET role = 'MUHABBET_TEACHER', assignedUnit = 'Yaz Okulu Hocası' WHERE id = ? AND role NOT IN ('SUPER_ADMIN', 'IL_BASKANI', 'IL_TESKILAT_BASKANI')", [teacherId]);
   }
 };
 
 exports.updateClass = async (id, { name, ageGroup, teacherId }) => {
   await query.run('UPDATE muhabbet_classes SET name = ?, ageGroup = ?, teacherId = ? WHERE id = ?', [name, ageGroup, teacherId || null, id]);
   if (teacherId) {
-    await query.run("UPDATE users SET role = 'MUHABBET_TEACHER', assignedUnit = 'Yaz Okulu Hocası' WHERE id = ? AND role != 'SUPER_ADMIN'", [teacherId]);
+    await query.run("UPDATE users SET role = 'MUHABBET_TEACHER', assignedUnit = 'Yaz Okulu Hocası' WHERE id = ? AND role NOT IN ('SUPER_ADMIN', 'IL_BASKANI', 'IL_TESKILAT_BASKANI')", [teacherId]);
   }
 };
 

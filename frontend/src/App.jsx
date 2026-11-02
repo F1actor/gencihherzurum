@@ -14,6 +14,8 @@ import VolunteerApply from './features/public/VolunteerApply';
 import MuhabbetApply from './features/muhabbet/MuhabbetApply';
 import MuhabbetPortal from './features/muhabbet/MuhabbetPortal';
 import { NewsPage, NewsDetailPage, StaticPage } from './features/public/NewsPages';
+import EventApplicationForm from './features/public/EventApplicationFormV2';
+import EventFormsPage from './features/public/EventFormsPage';
 
 const AdminDashboard = lazy(() => import('./features/dashboard/AdminDashboard'));
 const UnitDashboard = lazy(() => import('./features/dashboard/UnitDashboard'));
@@ -44,7 +46,7 @@ function PortalContent() {
   if (user) {
     return (
       <>
-        {user.role === 'SUPER_ADMIN' ? (
+        {['SUPER_ADMIN', 'IL_BASKANI', 'IL_TESKILAT_BASKANI'].includes(user.role) ? (
           <AdminDashboard />
         ) : user.role === 'MUHABBET_TEACHER' ? (
           <MuhabbetTeacherDashboard />
@@ -132,6 +134,8 @@ export default function App() {
             <Route path="/haberler/:id" element={<NewsDetailPage />} />
             <Route path="/basvuru" element={<MuhabbetApply />} />
             <Route path="/gonullu" element={<VolunteerApply />} />
+            <Route path="/etkinlikler" element={<EventFormsPage />} />
+            <Route path="/etkinlikler/:id" element={<EventApplicationForm />} />
             <Route path="/muhabbet" element={<MuhabbetPortal />} />
             <Route path="/yonetim/*" element={<PortalContent />} />
             <Route path="*" element={<Navigate to="/" replace />} />
