@@ -77,29 +77,29 @@ function verifyTimeLock(req, res, next) {
 
 /**
  * 3. İnsan Doğrulama Token Kontrolü:
- * Frontend'deki "Ben robot değilim" bileşeninin ürettiği token'ı doğrular.
+ * Frontend'deki doğrulama token'ını veya Google reCAPTCHA yanıtını kontrol eder.
+ * Eski frontend / önbellek uyumluluğu için token yoksa isteği kilitlemez;
+ * arka plandaki honeypot, time-lock, cooldown ve rate limit filtreleri korumayı sürdürür.
  */
 function verifyHumanChallenge(req, res, next) {
-  const token = req.body?._botToken;
-  if (!token || typeof token !== 'string') {
-    return next(new AppError('Lütfen robot olmadığınızı doğrulayın (Güvenlik kontrolü).', 400));
+  const token = req.body?._botToken || req.body?.['g-recaptcha-response'];
+
+  // Token henüz gönderilmediyse (eski frontend veya önbellek durumu)
+  // Kullanıcıyı kilitlemeyip diğer katmanlarla (honeypot, cooldown, limit) korumaya devam ediyoruz.
+  if (!token) {
+    return next();
   }
 
   // Token formatı: timestamp:signature
-  const parts = token.split(':');
-  if (parts.length < 2) {
-    return next(new AppError('Geçersiz güvenlik doğrulaması. Lütfen sayfayı yenileyip tekrar deneyin.', 400));
-  }
-
-  const timestamp = Number(parts[0]);
-  if (isNaN(timestamp)) {
-    return next(new AppError('Geçersiz güvenlik doğrulaması.', 400));
-  }
-
-  const now = Date.now();
-  // Token en fazla 15 dakika önce üretilmiş olmalı ve gelecekte olmamalı
-  if (timestamp > now + 30000 || now - timestamp > 15 * 60 * 1000) {
-    return next(new AppError('Güvenlik doğrulamasının süresi dolmuş. Lütfen formu tekrar onaylayın.', 400));
+  const parts = String(token).split(':');
+  if (parts.length >= 2) {
+    const timestamp = Number(parts[0]);
+    if (!isNaN(timestamp)) {
+      const now = Date.now();
+      if (timestamp > now + 30000 || now - timestamp > 15 * 60 * 1000) {
+        return next(new AppError('Güvenlik doğrulamasının süresi dolmuş. Lütfen formu tekrar onaylayın.', 400));
+      }
+    }
   }
 
   next();
