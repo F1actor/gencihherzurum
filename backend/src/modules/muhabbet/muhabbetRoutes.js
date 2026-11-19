@@ -3,7 +3,7 @@ const router = express.Router();
 const muhabbetController = require('./muhabbetController');
 const muhabbetValidator = require('./muhabbetValidator');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
-const { verifyHoneypot, verifyTimeLock, createStrictLimiter } = require('../../middleware/botProtection');
+const { verifyHoneypot, verifyRecaptcha, createStrictLimiter } = require('../../middleware/botProtection');
 
 const coordOrAdmin = ['SUPER_ADMIN', 'MUHABBET_COORDINATOR'];
 
@@ -14,7 +14,7 @@ const muhabbetApplyLimiter = createStrictLimiter({
 });
 
 // Public Routes
-router.post('/apply', muhabbetApplyLimiter, verifyHoneypot, verifyTimeLock, muhabbetValidator.validateApply, muhabbetController.apply);
+router.post('/apply', muhabbetApplyLimiter, verifyHoneypot, verifyRecaptcha, muhabbetValidator.validateApply, muhabbetController.apply);
 router.get('/menus', muhabbetController.getMenus);
 router.get('/settings', muhabbetController.getSettings);
 router.get('/portal-info', muhabbetController.getPortalInfo);

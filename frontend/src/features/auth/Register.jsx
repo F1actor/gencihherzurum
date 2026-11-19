@@ -3,7 +3,7 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { User, Mail, Lock, Phone, Loader, Check } from 'lucide-react';
 import AuthLayout from './AuthLayout';
-import HumanVerify from '../../shared/ui/HumanVerify';
+import GoogleRecaptcha from '../../shared/ui/GoogleRecaptcha';
 
 export default function Register({ onLoginRedirect, onRegisterSuccess }) {
   const { register, setLoadingScreen } = useAuth();
@@ -16,7 +16,7 @@ export default function Register({ onLoginRedirect, onRegisterSuccess }) {
   
   const [kvkkAccepted, setKvkkAccepted] = useState(false);
   const [showKvkkModal, setShowKvkkModal] = useState(false);
-  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,8 +25,8 @@ export default function Register({ onLoginRedirect, onRegisterSuccess }) {
       return;
     }
 
-    if (!botVerification.isVerified) {
-      showNotification('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.', 'warning');
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
+      showNotification('Lütfen "Ben robot değilim" onay kutusunu işaretleyin.', 'warning');
       return;
     }
     
@@ -35,9 +35,7 @@ export default function Register({ onLoginRedirect, onRegisterSuccess }) {
 
     try {
       await register(fullName, email, password, phoneNumber, {
-        _botToken: botVerification._botToken,
-        _formTime: botVerification._formTime,
-        hp_website: botVerification.hp_website
+        recaptchaToken
       });
       showNotification('Kayıt başarılı! E-posta adresinize doğrulama kodu gönderildi.', 'success');
       onRegisterSuccess(email);
@@ -177,11 +175,10 @@ export default function Register({ onLoginRedirect, onRegisterSuccess }) {
           </p>
         </div>
 
-        {/* Robot Doğrulama */}
-        <HumanVerify
-          value={botVerification.isVerified}
-          onChange={setBotVerification}
-          style={{ marginBottom: '20px' }}
+        {/* Google reCAPTCHA Doğrulama */}
+        <GoogleRecaptcha
+          onChange={setRecaptchaToken}
+          style={{ marginBottom: '16px' }}
         />
 
         <button 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Send, AlertCircle, Phone, ChevronDown, X, GraduationCap, Loader } from 'lucide-react';
 import logoImg from '../../assets/logo.jpg';
 import { API_URL, safeJson } from '../../shared/config/api';
-import HumanVerify from '../../shared/ui/HumanVerify';
+import GoogleRecaptcha from '../../shared/ui/GoogleRecaptcha';
 
 export default function MuhabbetApply() {
   const [formData, setFormData] = useState({
@@ -17,7 +17,7 @@ export default function MuhabbetApply() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState('');
 
   // Modal state
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
@@ -48,8 +48,8 @@ export default function MuhabbetApply() {
       return;
     }
 
-    if (!botVerification.isVerified) {
-      setError('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
+      setError('Lütfen "Ben robot değilim" onay kutusunu işaretleyin.');
       return;
     }
     
@@ -64,9 +64,7 @@ export default function MuhabbetApply() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...formData,
-            _botToken: botVerification._botToken,
-            _formTime: botVerification._formTime,
-            hp_website: botVerification.hp_website
+            recaptchaToken
           })
         });
       } catch {
@@ -203,10 +201,9 @@ export default function MuhabbetApply() {
                   <textarea name="address" required value={formData.address} onChange={handleChange} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s', resize: 'vertical', minHeight: '100px' }} onFocus={e => e.target.style.borderColor='var(--accent-primary)'} onBlur={e => e.target.style.borderColor='#cbd5e1'} placeholder="Mahalle, Sokak, No..." disabled={loading}></textarea>
                 </div>
 
-                {/* Robot Doğrulama */}
-                <HumanVerify
-                  value={botVerification.isVerified}
-                  onChange={setBotVerification}
+                {/* Google reCAPTCHA Doğrulama */}
+                <GoogleRecaptcha
+                  onChange={setRecaptchaToken}
                   style={{ marginTop: '10px' }}
                 />
 

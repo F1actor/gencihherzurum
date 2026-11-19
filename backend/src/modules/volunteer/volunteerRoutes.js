@@ -4,8 +4,7 @@ const { authenticateToken, requireRole } = require('../../middleware/authMiddlew
 const { sendVolunteerForwardEmail } = require('../../services/emailService');
 const {
   verifyHoneypot,
-  verifyTimeLock,
-  verifyHumanChallenge,
+  verifyRecaptcha,
   createStrictLimiter
 } = require('../../middleware/botProtection');
 
@@ -21,7 +20,7 @@ const volunteerFormLimiter = createStrictLimiter({
   message: 'Çok fazla başvuru denemesi yapıldı. Lütfen 15 dakika bekleyin.'
 });
 
-router.post('/', volunteerFormLimiter, verifyHoneypot, verifyTimeLock, verifyHumanChallenge, async (req, res, next) => {
+router.post('/', volunteerFormLimiter, verifyHoneypot, verifyRecaptcha, async (req, res, next) => {
   const fullName = clean(req.body, 'fullName');
   const phoneNumber = clean(req.body, 'phoneNumber', 50);
   const educationStatus = clean(req.body, 'educationStatus', 60);

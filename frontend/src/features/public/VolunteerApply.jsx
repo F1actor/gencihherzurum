@@ -5,7 +5,7 @@ import { API_URL, safeJson } from '../../shared/config/api';
 import { formatPhone, grades, needsEmploymentStatus, needsGrade, needsUniversityDetails, universities } from '../../shared/config/educationCatalog';
 import EducationStatusPicker from '../../shared/ui/EducationStatusPicker';
 import KvkkConsent from '../../shared/ui/KvkkConsent';
-import HumanVerify from '../../shared/ui/HumanVerify';
+import GoogleRecaptcha from '../../shared/ui/GoogleRecaptcha';
 
 const empty = { fullName: '', phoneNumber: '', educationStatus: '', university: '', faculty: '', department: '', grade: '', employmentStatus: '', kvkkAccepted: false };
 const input = { width: '100%', boxSizing: 'border-box', padding: '12px 13px', border: '1px solid #dbe3ec', borderRadius: 10, fontSize: 14, background: '#fff' };
@@ -15,7 +15,7 @@ export default function VolunteerApply() {
   const [form, setForm] = useState(empty);
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
-  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState('');
 
   const universityFlow = needsUniversityDetails(form.educationStatus);
   const employment = needsEmploymentStatus(form.educationStatus);
@@ -27,8 +27,8 @@ export default function VolunteerApply() {
 
   const submit = async event => {
     event.preventDefault();
-    if (!botVerification.isVerified) {
-      setResult('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
+      setResult('Lütfen "Ben robot değilim" onay kutusunu işaretleyin.');
       return;
     }
     setLoading(true);
@@ -41,9 +41,7 @@ export default function VolunteerApply() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...form,
-            _botToken: botVerification._botToken,
-            _formTime: botVerification._formTime,
-            hp_website: botVerification.hp_website
+            recaptchaToken
           })
         });
       } catch {
@@ -71,10 +69,9 @@ export default function VolunteerApply() {
         {employment && <div><p style={{ fontWeight: 800 }}>Çalışma durumu</p><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'EMPLOYED' })} style={{ marginRight: 8, borderColor: form.employmentStatus === 'EMPLOYED' ? '#166534' : undefined }}>Aktif çalışıyorum</button><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'UNEMPLOYED' })} style={{ borderColor: form.employmentStatus === 'UNEMPLOYED' ? '#166534' : undefined }}>Çalışmıyorum</button></div>}
         <KvkkConsent checked={form.kvkkAccepted} onChange={event => update({ kvkkAccepted: event.target.checked })} />
 
-        {/* Robot Doğrulama */}
-        <HumanVerify
-          value={botVerification.isVerified}
-          onChange={setBotVerification}
+        {/* Google reCAPTCHA Doğrulama */}
+        <GoogleRecaptcha
+          onChange={setRecaptchaToken}
         />
 
         {result && <p style={{ color: '#b91c1c' }}>{result}</p>}<button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Gönderiliyor...' : 'Başvuruyu gönder'}</button>

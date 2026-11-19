@@ -5,8 +5,7 @@ const authValidator = require('./authValidator');
 const { authenticateToken } = require('../../middleware/authMiddleware');
 const {
   verifyHoneypot,
-  verifyTimeLock,
-  verifyHumanChallenge,
+  verifyRecaptcha,
   createStrictLimiter
 } = require('../../middleware/botProtection');
 
@@ -39,8 +38,7 @@ router.post(
   '/register',
   registerLimiter,
   verifyHoneypot,
-  verifyTimeLock,
-  verifyHumanChallenge,
+  verifyRecaptcha,
   authValidator.validateRegister,
   authController.register
 );
@@ -49,8 +47,7 @@ router.post(
   '/forgot-password',
   forgotLimiter,
   verifyHoneypot,
-  verifyTimeLock,
-  verifyHumanChallenge,
+  verifyRecaptcha,
   authValidator.validateForgotPassword,
   authController.forgotPassword
 );

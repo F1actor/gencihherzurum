@@ -1,5 +1,4 @@
 const AppError = require('../core/errors/AppError');
-const crypto = require('crypto');
 
 /**
  * Bilinen tek kullanımlık / sahte e-posta sağlayıcıları listesi.
@@ -13,8 +12,7 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
 ]);
 
 /**
- * İstemcinin gerçek IP adresini güvenli bir şekilde tespit eder.
- * Reverse proxy (Nginx, Cloudflare, cPanel) arkasındayken doğru IP'yi alır.
+ * İstemcinin gerçek IP adresini tespit eder (Nginx / cPanel reverse proxy arkasında).
  */
 function getClientIp(req) {
   const cfIp = req.headers['cf-connecting-ip'];
@@ -33,10 +31,8 @@ function getClientIp(req) {
 
 /**
  * 1. Bal Küpü (Honeypot) Koruması:
- * Gerçek kullanıcıların görmediği gizli alanları (hp_website, hp_token vb.) kontrol eder.
- * Botlar form alanlarını otomatik doldurduğu için bu alana veri girerler.
- * Bot tespit edilirse, botu şüphelendirmeden sessizce 200 OK döneriz;
- * böylece veritabanına kayıt atılmaz ve e-posta tetiklenmez.
+ * İnsanların görmediği gizli alanları kontrol eder.
+ * Botlar doldurursa sessizce 200 döner, veritabanına ve SMTP'ye dokunmaz.
  */
 function verifyHoneypot(req, res, next) {
   const honeypotFields = ['hp_website', 'hp_token', 'website', '_hp_check'];
@@ -44,7 +40,6 @@ function verifyHoneypot(req, res, next) {
     const value = req.body?.[field];
     if (value && typeof value === 'string' && value.trim().length > 0) {
       console.warn(`[BOT ENGELLENDİ - HONEYPOT] IP: ${getClientIp(req)} - Alan: ${field}`);
-      // Sahte başarı dönerek botun döngüye girip yeniden denemesini engelliyoruz.
       return res.status(200).json({
         success: true,
         message: 'İşleminiz başarıyla alındı.'
@@ -55,58 +50,53 @@ function verifyHoneypot(req, res, next) {
 }
 
 /**
- * 2. Zaman Kilidi (Time-Lock) Koruması:
- * İnsan bir formu en az 1.5 - 2 saniyede doldurabilir.
- * Botlar ise milisaniyeler içinde POST isteği atar.
+ * 2. Resmi Google reCAPTCHA v2 Doğrulaması:
+ * Google'ın siteverify API'si ile gelen token'ı doğrular.
+ * Eğer .env içerisinde RECAPTCHA_SECRET_KEY henüz girilmediyse formu kilitlemez.
  */
-function verifyTimeLock(req, res, next) {
-  const formTime = Number(req.body?._formTime);
-  if (formTime && !isNaN(formTime)) {
-    const elapsedMs = Date.now() - formTime;
-    // Eğer form 1.5 saniyeden daha kısa sürede gönderildiyse bot kabul edilir
-    if (elapsedMs < 1500) {
-      console.warn(`[BOT ENGELLENDİ - FAST SUBMIT] IP: ${getClientIp(req)} - Süre: ${elapsedMs}ms`);
-      return res.status(200).json({
-        success: true,
-        message: 'İşleminiz başarıyla alındı.'
-      });
-    }
-  }
-  next();
-}
+async function verifyRecaptcha(req, res, next) {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
 
-/**
- * 3. İnsan Doğrulama Token Kontrolü:
- * Frontend'deki doğrulama token'ını veya Google reCAPTCHA yanıtını kontrol eder.
- * Eski frontend / önbellek uyumluluğu için token yoksa isteği kilitlemez;
- * arka plandaki honeypot, time-lock, cooldown ve rate limit filtreleri korumayı sürdürür.
- */
-function verifyHumanChallenge(req, res, next) {
-  const token = req.body?._botToken || req.body?.['g-recaptcha-response'];
-
-  // Token henüz gönderilmediyse (eski frontend veya önbellek durumu)
-  // Kullanıcıyı kilitlemeyip diğer katmanlarla (honeypot, cooldown, limit) korumaya devam ediyoruz.
-  if (!token) {
+  // Anahtar henüz tanımlanmadıysa formu kilitleme (geliştirme veya geçiş süreci)
+  if (!secretKey) {
     return next();
   }
 
-  // Token formatı: timestamp:signature
-  const parts = String(token).split(':');
-  if (parts.length >= 2) {
-    const timestamp = Number(parts[0]);
-    if (!isNaN(timestamp)) {
-      const now = Date.now();
-      if (timestamp > now + 30000 || now - timestamp > 15 * 60 * 1000) {
-        return next(new AppError('Güvenlik doğrulamasının süresi dolmuş. Lütfen formu tekrar onaylayın.', 400));
-      }
-    }
+  const token = req.body?.recaptchaToken || req.body?.['g-recaptcha-response'];
+  if (!token || typeof token !== 'string') {
+    return next(new AppError('Lütfen "Ben robot değilim" onay kutusunu doğrulayın.', 400));
   }
 
-  next();
+  try {
+    const clientIp = getClientIp(req);
+    const params = new URLSearchParams({
+      secret: secretKey,
+      response: token,
+      remoteip: clientIp
+    });
+
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      console.warn(`[RECAPTCHA DOĞRULAMA BAŞARISIZ] IP: ${clientIp} - Kodlar:`, data['error-codes']);
+      return next(new AppError('Robot doğrulaması başarısız oldu. Lütfen kutucuğu tekrar işaretleyin.', 400));
+    }
+
+    next();
+  } catch (error) {
+    console.error('Google reCAPTCHA iletişim hatası:', error.message);
+    return next(new AppError('Güvenlik doğrulaması sırasında bir hata oluştu.', 500));
+  }
 }
 
 /**
- * 4. Geçici / Sahte E-posta Kontrolü:
+ * 3. Geçici / Sahte E-posta Kontrolü:
  */
 function checkDisposableEmail(email) {
   if (!email || typeof email !== 'string') return false;
@@ -117,9 +107,8 @@ function checkDisposableEmail(email) {
 }
 
 /**
- * 5. Sistem Yönetim E-postasıyla Kayıt Olma Girişimini Engelleme:
- * Pentest yapanların sistemin kendi gönderici mailini yazarak
- * "benden bana mail gitti" döngüsünü tetiklemesini engeller.
+ * 4. Sistem Yönetim E-postasıyla Kayıt Olma Girişimini Engelleme:
+ * Saldırganın yöneticinin SMTP adresini yazıp "benden bana mail gönderildi" döngüsünü engeller.
  */
 function checkSystemEmail(email) {
   if (!email || typeof email !== 'string') return false;
@@ -130,7 +119,6 @@ function checkSystemEmail(email) {
     process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase().trim(),
   ].filter(Boolean);
 
-  // SMTP_FROM içerisindeki e-postayı da ayıkla (örn: "İsim" <mail@site.com>)
   if (process.env.SMTP_FROM) {
     const match = process.env.SMTP_FROM.match(/<([^>]+)>/);
     if (match && match[1]) systemMails.push(match[1].toLowerCase().trim());
@@ -140,8 +128,8 @@ function checkSystemEmail(email) {
 }
 
 /**
- * 6. E-posta Hedef Bazlı Cooldown & Hız Sınırı (Sliding Window):
- * Bir e-posta adresine üst üste spam mail atılmasını önler.
+ * 5. E-posta Hedef Bazlı Cooldown & Hız Sınırı:
+ * Bir e-posta adresine üst üste spam mail gitmesini önler.
  */
 const emailSendLog = new Map();
 
@@ -165,7 +153,6 @@ function checkEmailCooldown(targetEmail, cooldownSeconds = 60, maxPer15Min = 3) 
   history.push(now);
   emailSendLog.set(email, history);
 
-  // Map temizliği
   if (emailSendLog.size > 2000) {
     const cutoff = now - 15 * 60 * 1000;
     for (const [key, list] of emailSendLog.entries()) {
@@ -177,7 +164,7 @@ function checkEmailCooldown(targetEmail, cooldownSeconds = 60, maxPer15Min = 3) 
 }
 
 /**
- * 7. Katı IP Tabanlı Hız Sınırı Fabrikası (Rate Limiter):
+ * 6. Katı IP Tabanlı Hız Sınırı:
  */
 function createStrictLimiter({ windowMs, max, message = 'Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin.' }) {
   const ipLog = new Map();
@@ -187,7 +174,7 @@ function createStrictLimiter({ windowMs, max, message = 'Çok fazla istek gönde
     const timestamps = (ipLog.get(ip) || []).filter(ts => now - ts < windowMs);
 
     if (timestamps.length >= max) {
-      console.warn(`[RATE LIMIT EXCEEDED] IP: ${ip} - İstek Sayısı: ${timestamps.length + 1}/${max}`);
+      console.warn(`[RATE LIMIT EXCEEDED] IP: ${ip} - İstek: ${timestamps.length + 1}/${max}`);
       res.setHeader('Retry-After', Math.ceil(windowMs / 1000));
       return next(new AppError(message, 429));
     }
@@ -201,11 +188,9 @@ function createStrictLimiter({ windowMs, max, message = 'Çok fazla istek gönde
 module.exports = {
   getClientIp,
   verifyHoneypot,
-  verifyTimeLock,
-  verifyHumanChallenge,
+  verifyRecaptcha,
   checkDisposableEmail,
   checkSystemEmail,
   checkEmailCooldown,
   createStrictLimiter
 };
-

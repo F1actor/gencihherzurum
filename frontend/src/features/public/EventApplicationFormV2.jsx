@@ -5,7 +5,7 @@ import { API_URL, safeJson } from '../../shared/config/api';
 import { formatPhone, grades, needsEmploymentStatus, needsGrade, needsUniversityDetails, universities } from '../../shared/config/educationCatalog';
 import EducationStatusPicker from '../../shared/ui/EducationStatusPicker';
 import KvkkConsent from '../../shared/ui/KvkkConsent';
-import HumanVerify from '../../shared/ui/HumanVerify';
+import GoogleRecaptcha from '../../shared/ui/GoogleRecaptcha';
 
 const empty = { fullName: '', phoneNumber: '', educationStatus: '', university: '', faculty: '', department: '', grade: '', employmentStatus: '', kvkkAccepted: false };
 const input = { width: '100%', boxSizing: 'border-box', padding: '13px 15px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: '1rem', background: '#fff', color: '#1e293b' };
@@ -16,7 +16,7 @@ export default function EventApplicationFormV2() {
   const [form, setForm] = useState(empty);
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
-  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState('');
 
   const universityFlow = needsUniversityDetails(form.educationStatus);
   const employment = needsEmploymentStatus(form.educationStatus);
@@ -39,8 +39,8 @@ export default function EventApplicationFormV2() {
 
   const submit = async eventSubmit => {
     eventSubmit.preventDefault();
-    if (!botVerification.isVerified) {
-      setNotice('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
+      setNotice('Lütfen "Ben robot değilim" onay kutusunu işaretleyin.');
       return;
     }
 
@@ -54,9 +54,7 @@ export default function EventApplicationFormV2() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...form,
-            _botToken: botVerification._botToken,
-            _formTime: botVerification._formTime,
-            hp_website: botVerification.hp_website
+            recaptchaToken
           })
         });
       } catch {
@@ -87,10 +85,9 @@ export default function EventApplicationFormV2() {
         {employment && <div><b>Çalışma durumu</b><div style={{ marginTop: 8, display: 'flex', gap: 8 }}><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'EMPLOYED' })}>Aktif çalışıyorum</button><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'UNEMPLOYED' })}>Çalışmıyorum</button></div></div>}
         <KvkkConsent checked={form.kvkkAccepted} onChange={eventChange => update({ kvkkAccepted: eventChange.target.checked })} />
 
-        {/* Robot Doğrulama */}
-        <HumanVerify
-          value={botVerification.isVerified}
-          onChange={setBotVerification}
+        {/* Google reCAPTCHA Doğrulama */}
+        <GoogleRecaptcha
+          onChange={setRecaptchaToken}
         />
 
         {notice && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{notice}</p>}<button disabled={loading} type="submit" style={{ border: 0, borderRadius: 10, padding: 15, background: 'var(--accent-primary)', color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}>{loading ? 'Gönderiliyor...' : 'Başvuruyu Gönder'}</button>

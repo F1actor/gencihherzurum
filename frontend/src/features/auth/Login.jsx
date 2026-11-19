@@ -4,7 +4,7 @@ import { useNotification } from '../../shared/context/NotificationContext';
 import { Eye, EyeOff, Lock, Mail, Loader } from 'lucide-react';
 import AuthLayout from './AuthLayout';
 import { API_URL, safeJson } from '../../shared/config/api';
-import HumanVerify from '../../shared/ui/HumanVerify';
+import GoogleRecaptcha from '../../shared/ui/GoogleRecaptcha';
 
 export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const { login, setLoadingScreen } = useAuth();
@@ -19,7 +19,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const [resetMode, setResetMode] = useState(false);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,8 +49,8 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           showNotification(data.message, 'error');
         }
       } else if (forgotMode) {
-        if (!botVerification.isVerified) {
-          showNotification('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.', 'warning');
+        if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
+          showNotification('Lütfen "Ben robot değilim" onay kutusunu işaretleyin.', 'warning');
           setLoading(false);
           setLoadingScreen(false);
           return;
@@ -64,9 +64,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email,
-              _botToken: botVerification._botToken,
-              _formTime: botVerification._formTime,
-              hp_website: botVerification.hp_website
+              recaptchaToken
             })
           });
         } catch {
@@ -81,12 +79,6 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           showNotification(data.message, 'error');
         }
       } else {
-        if (!botVerification.isVerified) {
-          showNotification('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.', 'warning');
-          setLoading(false);
-          setLoadingScreen(false);
-          return;
-        }
         // Normal Login
         await login(email, password);
         showNotification('Başarıyla giriş yapıldı. Hoş geldiniz!', 'success');
@@ -211,11 +203,10 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           </>
         )}
 
-        {!resetMode && (
-          <HumanVerify
-            value={botVerification.isVerified}
-            onChange={setBotVerification}
-            style={{ marginBottom: '20px' }}
+        {forgotMode && !resetMode && (
+          <GoogleRecaptcha
+            onChange={setRecaptchaToken}
+            style={{ marginBottom: '16px' }}
           />
         )}
 
