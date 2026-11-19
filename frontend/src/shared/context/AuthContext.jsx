@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { API_URL } from '../config/api';
+import { API_URL, safeJson } from '../config/api';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'gencihh_token';
@@ -109,30 +109,65 @@ export const AuthProvider = ({ children }) => {
 
   const toggleTheme = () => setTheme(current => current === 'light' ? 'dark' : 'light');
 
-  const register = async (fullName, email, password, phoneNumber) => {
-    const response = await fetch(`${API_URL}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName, email, password, phoneNumber }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Kayıt sırasında hata oluştu.');
-    return data;
+  const register = async (fullName, email, password, phoneNumber, botVerification = {}) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, password, phoneNumber, ...botVerification })
+      });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.message || 'Kayıt sırasında hata oluştu.');
+      return data;
+    } catch (err) {
+      if (err.name === 'TypeError' || err.message?.includes('fetch')) {
+        throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+      }
+      throw err;
+    }
   };
 
   const verifyOtp = async (email, otpCode) => {
-    const response = await fetch(`${API_URL}/auth/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otpCode }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Doğrulama hatası.');
-    return data;
+    try {
+      const response = await fetch(`${API_URL}/auth/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otpCode }) });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.message || 'Doğrulama hatası.');
+      return data;
+    } catch (err) {
+      if (err.name === 'TypeError' || err.message?.includes('fetch')) {
+        throw new Error('Sunucuya şu anda ulaşılamıyor.');
+      }
+      throw err;
+    }
   };
 
   const resendOtp = async email => {
-    const response = await fetch(`${API_URL}/auth/resend-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Kod gönderme hatası.');
-    return data;
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.message || 'Kod gönderme hatası.');
+      return data;
+    } catch (err) {
+      if (err.name === 'TypeError' || err.message?.includes('fetch')) {
+        throw new Error('Sunucuya şu anda ulaşılamıyor.');
+      }
+      throw err;
+    }
   };
 
   const login = async (email, password) => {
-    const response = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-    const data = await response.json();
+    let response;
+    try {
+      response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+    } catch (err) {
+      throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+    }
+
+    const data = await safeJson(response);
     if (!response.ok) {
       if (response.status === 403 && data.isEmailVerified === false) throw { unverified: true, email: data.email, message: data.message };
       throw new Error(data.message || 'Giriş yapılamadı.');

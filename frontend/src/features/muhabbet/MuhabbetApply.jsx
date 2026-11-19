@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Send, AlertCircle, Phone, ChevronDown, X, GraduationCap, Loader } from 'lucide-react';
 import logoImg from '../../assets/logo.jpg';
-import { API_URL } from '../../shared/config/api';
+import { API_URL, safeJson } from '../../shared/config/api';
+import HumanVerify from '../../shared/ui/HumanVerify';
 
 export default function MuhabbetApply() {
   const [formData, setFormData] = useState({
@@ -16,6 +17,7 @@ export default function MuhabbetApply() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
 
   // Modal state
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
@@ -45,17 +47,33 @@ export default function MuhabbetApply() {
       setError('Lütfen bir sınıf seçiniz.');
       return;
     }
+
+    if (!botVerification.isVerified) {
+      setError('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+      return;
+    }
     
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/muhabbet/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
+      let res;
+      try {
+        res = await fetch(`${API_URL}/muhabbet/apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            _botToken: botVerification._botToken,
+            _formTime: botVerification._formTime,
+            hp_website: botVerification.hp_website
+          })
+        });
+      } catch {
+        throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+      }
+
+      const data = await safeJson(res);
       
       if (!res.ok) {
         throw new Error(data.message || 'Başvuru başarısız oldu.');
@@ -184,6 +202,13 @@ export default function MuhabbetApply() {
                   <label style={{ fontWeight: '600', color: '#334155', fontSize: '0.95rem' }}>Açık Adres</label>
                   <textarea name="address" required value={formData.address} onChange={handleChange} style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s', resize: 'vertical', minHeight: '100px' }} onFocus={e => e.target.style.borderColor='var(--accent-primary)'} onBlur={e => e.target.style.borderColor='#cbd5e1'} placeholder="Mahalle, Sokak, No..." disabled={loading}></textarea>
                 </div>
+
+                {/* Robot Doğrulama */}
+                <HumanVerify
+                  value={botVerification.isVerified}
+                  onChange={setBotVerification}
+                  style={{ marginTop: '10px' }}
+                />
 
                 <button type="submit" disabled={loading} style={{ 
                   marginTop: '15px', padding: '16px', backgroundColor: loading ? '#94a3b8' : 'var(--accent-primary)', 

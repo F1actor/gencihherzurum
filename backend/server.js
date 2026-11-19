@@ -25,7 +25,8 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
 const allowedOrigins = (process.env.CLIENT_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
 
-if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
+// Reverse proxy (Nginx, cPanel, Cloudflare) arkasında doğru istemci IP tespiti için
+app.set('trust proxy', 1);
 
 // CORS Yapılandırması (React ön yüzü ile iletişim için)
 app.use(cors({

@@ -3,7 +3,8 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { Eye, EyeOff, Lock, Mail, Loader } from 'lucide-react';
 import AuthLayout from './AuthLayout';
-import { API_URL } from '../../shared/config/api';
+import { API_URL, safeJson } from '../../shared/config/api';
+import HumanVerify from '../../shared/ui/HumanVerify';
 
 export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const { login, setLoadingScreen } = useAuth();
@@ -18,6 +19,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
   const [resetMode, setResetMode] = useState(false);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,12 +29,18 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
     try {
       if (resetMode) {
         // Şifre Sıfırlama Onayı
-        const res = await fetch(`${API_URL}/auth/reset-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, otpCode: otp, newPassword })
-        });
-        const data = await res.json();
+        let res;
+        try {
+          res = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otpCode: otp, newPassword })
+          });
+        } catch {
+          throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+        }
+
+        const data = await safeJson(res);
         if (res.ok) {
           showNotification('Şifreniz başarıyla değiştirildi. Giriş yapabilirsiniz.', 'success');
           setResetMode(false);
@@ -41,13 +49,31 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           showNotification(data.message, 'error');
         }
       } else if (forgotMode) {
+        if (!botVerification.isVerified) {
+          showNotification('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.', 'warning');
+          setLoading(false);
+          setLoadingScreen(false);
+          return;
+        }
+
         // Şifre Sıfırlama Kodu Gönderme
-        const res = await fetch(`${API_URL}/auth/forgot-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
+        let res;
+        try {
+          res = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              _botToken: botVerification._botToken,
+              _formTime: botVerification._formTime,
+              hp_website: botVerification.hp_website
+            })
+          });
+        } catch {
+          throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+        }
+
+        const data = await safeJson(res);
         if (res.ok) {
           showNotification('Doğrulama kodu e-postanıza gönderildi.', 'info');
           setResetMode(true);
@@ -177,6 +203,14 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
               </div>
             </div>
           </>
+        )}
+
+        {forgotMode && !resetMode && (
+          <HumanVerify
+            value={botVerification.isVerified}
+            onChange={setBotVerification}
+            style={{ marginBottom: '20px' }}
+          />
         )}
 
         <button 

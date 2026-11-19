@@ -1,8 +1,19 @@
 const express = require('express');
 const { query } = require('../../config/database');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
+const {
+  verifyHoneypot,
+  verifyTimeLock,
+  verifyHumanChallenge,
+  createStrictLimiter
+} = require('../../middleware/botProtection');
 
 const router = express.Router();
+const eventAppLimiter = createStrictLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Çok fazla etkinlik başvurusu yapıldı. Lütfen 15 dakika bekleyin.'
+});
 const clean = (body, key, max = 255) => typeof body?.[key] === 'string' ? body[key].trim().slice(0, max) : '';
 const normalize = body => ({ title: clean(body, 'title'), description: clean(body, 'description', 5000), eventDate: clean(body, 'eventDate', 10), eventTime: clean(body, 'eventTime', 20), location: clean(body, 'location'), isActive: body?.isActive ? 1 : 0 });
 const universityStatuses = new Set(['UNIVERSITY_STUDENT', 'UNIVERSITY_GRADUATE', 'ASSOCIATE_STUDENT', 'OPEN_EDUCATION', 'DISTANCE_EDUCATION', 'MASTERS', 'DOCTORATE']);
@@ -28,7 +39,7 @@ router.delete('/manage/:id', authenticateToken, requireRole('SUPER_ADMIN'), asyn
 router.get('/manage/:id/applications', authenticateToken, requireRole('SUPER_ADMIN'), async (req, res, next) => { try { return res.json(await query.all('SELECT * FROM application_event_entries WHERE eventId = ? ORDER BY id DESC', [req.params.id])); } catch (error) { return next(error); } });
 
 router.get('/:id', async (req, res, next) => { try { const event = await query.get('SELECT id, title, description, eventDate, eventTime, location FROM application_events WHERE id = ? AND isActive = 1', [req.params.id]); if (!event) return res.status(404).json({ message: 'Etkinlik formu bulunamadi veya basvuruya kapali.' }); return res.json(event); } catch (error) { return next(error); } });
-router.post('/:id/applications', async (req, res, next) => {
+router.post('/:id/applications', eventAppLimiter, verifyHoneypot, verifyTimeLock, verifyHumanChallenge, async (req, res, next) => {
   const fullName = clean(req.body, 'fullName'); const phoneNumber = clean(req.body, 'phoneNumber', 50); const educationStatus = clean(req.body, 'educationStatus', 60); const needsUniversity = universityStatuses.has(educationStatus); const needsGrade = ['UNIVERSITY_STUDENT', 'ASSOCIATE_STUDENT', 'OPEN_EDUCATION', 'DISTANCE_EDUCATION', 'MASTERS', 'DOCTORATE'].includes(educationStatus); const needsEmployment = graduateStatuses.has(educationStatus);
   const university = clean(req.body, 'university') || 'Universite okumuyor'; const faculty = clean(req.body, 'faculty') || '-'; const department = clean(req.body, 'department') || '-'; const grade = clean(req.body, 'grade', 100) || '-';
   const employmentStatus = clean(req.body, 'employmentStatus', 40);

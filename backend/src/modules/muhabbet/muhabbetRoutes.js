@@ -3,11 +3,18 @@ const router = express.Router();
 const muhabbetController = require('./muhabbetController');
 const muhabbetValidator = require('./muhabbetValidator');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
+const { verifyHoneypot, verifyTimeLock, createStrictLimiter } = require('../../middleware/botProtection');
 
 const coordOrAdmin = ['SUPER_ADMIN', 'MUHABBET_COORDINATOR'];
 
+const muhabbetApplyLimiter = createStrictLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Çok fazla Muhabbet Okulu başvurusu yapıldı. Lütfen 15 dakika bekleyin.'
+});
+
 // Public Routes
-router.post('/apply', muhabbetValidator.validateApply, muhabbetController.apply);
+router.post('/apply', muhabbetApplyLimiter, verifyHoneypot, verifyTimeLock, muhabbetValidator.validateApply, muhabbetController.apply);
 router.get('/menus', muhabbetController.getMenus);
 router.get('/settings', muhabbetController.getSettings);
 router.get('/portal-info', muhabbetController.getPortalInfo);

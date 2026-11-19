@@ -2,6 +2,12 @@ const express = require('express');
 const { query } = require('../../config/database');
 const { authenticateToken, requireRole } = require('../../middleware/authMiddleware');
 const { sendVolunteerForwardEmail } = require('../../services/emailService');
+const {
+  verifyHoneypot,
+  verifyTimeLock,
+  verifyHumanChallenge,
+  createStrictLimiter
+} = require('../../middleware/botProtection');
 
 const router = express.Router();
 const statuses = ['NEW', 'READ', 'FORWARDED', 'CALLED', 'POSITIVE', 'NEGATIVE'];
@@ -9,7 +15,13 @@ const clean = (body, key, max = 255) => typeof body?.[key] === 'string' ? body[k
 const universityStatuses = new Set(['UNIVERSITY_STUDENT', 'UNIVERSITY_GRADUATE', 'ASSOCIATE_STUDENT', 'OPEN_EDUCATION', 'DISTANCE_EDUCATION', 'MASTERS', 'DOCTORATE']);
 const graduateStatuses = new Set(['UNIVERSITY_GRADUATE']);
 
-router.post('/', async (req, res, next) => {
+const volunteerFormLimiter = createStrictLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Çok fazla başvuru denemesi yapıldı. Lütfen 15 dakika bekleyin.'
+});
+
+router.post('/', volunteerFormLimiter, verifyHoneypot, verifyTimeLock, verifyHumanChallenge, async (req, res, next) => {
   const fullName = clean(req.body, 'fullName');
   const phoneNumber = clean(req.body, 'phoneNumber', 50);
   const educationStatus = clean(req.body, 'educationStatus', 60);

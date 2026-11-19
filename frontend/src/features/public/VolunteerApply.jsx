@@ -1,22 +1,63 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, HeartHandshake } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { API_URL } from '../../shared/config/api';
+import { API_URL, safeJson } from '../../shared/config/api';
 import { formatPhone, grades, needsEmploymentStatus, needsGrade, needsUniversityDetails, universities } from '../../shared/config/educationCatalog';
 import EducationStatusPicker from '../../shared/ui/EducationStatusPicker';
 import KvkkConsent from '../../shared/ui/KvkkConsent';
+import HumanVerify from '../../shared/ui/HumanVerify';
 
 const empty = { fullName: '', phoneNumber: '', educationStatus: '', university: '', faculty: '', department: '', grade: '', employmentStatus: '', kvkkAccepted: false };
 const input = { width: '100%', boxSizing: 'border-box', padding: '12px 13px', border: '1px solid #dbe3ec', borderRadius: 10, fontSize: 14, background: '#fff' };
 const label = { display: 'grid', gap: 7, fontSize: 13, fontWeight: 800, color: '#334155' };
 
 export default function VolunteerApply() {
-  const [form, setForm] = useState(empty); const [result, setResult] = useState(''); const [loading, setLoading] = useState(false);
-  const universityFlow = needsUniversityDetails(form.educationStatus); const employment = needsEmploymentStatus(form.educationStatus); const gradeRequired = needsGrade(form.educationStatus);
+  const [form, setForm] = useState(empty);
+  const [result, setResult] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+
+  const universityFlow = needsUniversityDetails(form.educationStatus);
+  const employment = needsEmploymentStatus(form.educationStatus);
+  const gradeRequired = needsGrade(form.educationStatus);
   const faculties = useMemo(() => Object.keys(universities[form.university] || {}), [form.university]);
   const departments = useMemo(() => universities[form.university]?.[form.faculty] || [], [form.university, form.faculty]);
+
   const update = value => setForm(old => ({ ...old, ...value }));
-  const submit = async event => { event.preventDefault(); setLoading(true); setResult(''); try { const response = await fetch(`${API_URL}/volunteers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); const data = await response.json(); if (!response.ok) throw new Error(data.message); setResult('success'); } catch (error) { setResult(error.message); } finally { setLoading(false); } };
+
+  const submit = async event => {
+    event.preventDefault();
+    if (!botVerification.isVerified) {
+      setResult('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+      return;
+    }
+    setLoading(true);
+    setResult('');
+    try {
+      let response;
+      try {
+        response = await fetch(`${API_URL}/volunteers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            _botToken: botVerification._botToken,
+            _formTime: botVerification._formTime,
+            hp_website: botVerification.hp_website
+          })
+        });
+      } catch {
+        throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+      }
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.message);
+      setResult('success');
+    } catch (error) {
+      setResult(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return <main style={{ minHeight: '100vh', padding: '28px 18px 60px', background: '#f5f8f6' }}><div style={{ maxWidth: 850, margin: '0 auto' }}>
     <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#475569', fontWeight: 700, textDecoration: 'none' }}><ArrowLeft size={17} /> Ana sayfaya dön</Link>
@@ -29,6 +70,13 @@ export default function VolunteerApply() {
         {universityFlow && <fieldset style={{ border: '1px solid #dbe7de', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}><legend style={{ padding: '0 7px', fontWeight: 800 }}>Üniversite bilgileri</legend><label style={label}>Üniversite<select required value={form.university} onChange={event => update({ university: event.target.value, faculty: '', department: '' })} style={input}><option value="">Seçiniz</option>{Object.keys(universities).map(name => <option key={name}>{name}</option>)}</select></label><label style={label}>Fakülte<select required value={form.faculty} onChange={event => update({ faculty: event.target.value, department: '' })} style={input}><option value="">Seçiniz</option>{faculties.map(name => <option key={name}>{name}</option>)}</select></label><label style={label}>Bölüm<select required value={form.department} onChange={event => update({ department: event.target.value })} style={input}><option value="">Seçiniz</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>{gradeRequired && <label style={label}>Sınıf<select required value={form.grade} onChange={event => update({ grade: event.target.value })} style={input}><option value="">Seçiniz</option>{grades.map(grade => <option key={grade}>{grade}</option>)}</select></label>}</fieldset>}
         {employment && <div><p style={{ fontWeight: 800 }}>Çalışma durumu</p><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'EMPLOYED' })} style={{ marginRight: 8, borderColor: form.employmentStatus === 'EMPLOYED' ? '#166534' : undefined }}>Aktif çalışıyorum</button><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'UNEMPLOYED' })} style={{ borderColor: form.employmentStatus === 'UNEMPLOYED' ? '#166534' : undefined }}>Çalışmıyorum</button></div>}
         <KvkkConsent checked={form.kvkkAccepted} onChange={event => update({ kvkkAccepted: event.target.checked })} />
+
+        {/* Robot Doğrulama */}
+        <HumanVerify
+          value={botVerification.isVerified}
+          onChange={setBotVerification}
+        />
+
         {result && <p style={{ color: '#b91c1c' }}>{result}</p>}<button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Gönderiliyor...' : 'Başvuruyu gönder'}</button>
       </form>}</div>
     </section>

@@ -1,21 +1,78 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CalendarDays, Heart, MapPin } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { API_URL } from '../../shared/config/api';
+import { API_URL, safeJson } from '../../shared/config/api';
 import { formatPhone, grades, needsEmploymentStatus, needsGrade, needsUniversityDetails, universities } from '../../shared/config/educationCatalog';
 import EducationStatusPicker from '../../shared/ui/EducationStatusPicker';
 import KvkkConsent from '../../shared/ui/KvkkConsent';
+import HumanVerify from '../../shared/ui/HumanVerify';
 
 const empty = { fullName: '', phoneNumber: '', educationStatus: '', university: '', faculty: '', department: '', grade: '', employmentStatus: '', kvkkAccepted: false };
 const input = { width: '100%', boxSizing: 'border-box', padding: '13px 15px', border: '1px solid #cbd5e1', borderRadius: 10, fontSize: '1rem', background: '#fff', color: '#1e293b' };
 
 export default function EventApplicationFormV2() {
-  const { id } = useParams(); const [event, setEvent] = useState(null); const [form, setForm] = useState(empty); const [notice, setNotice] = useState(''); const [loading, setLoading] = useState(false);
-  const universityFlow = needsUniversityDetails(form.educationStatus); const employment = needsEmploymentStatus(form.educationStatus); const gradeRequired = needsGrade(form.educationStatus);
-  const faculties = useMemo(() => Object.keys(universities[form.university] || {}), [form.university]); const departments = useMemo(() => universities[form.university]?.[form.faculty] || [], [form.university, form.faculty]);
-  useEffect(() => { fetch(`${API_URL}/application-events/${id}`).then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data; }).then(setEvent).catch(error => setNotice(error.message)); }, [id]);
+  const { id } = useParams();
+  const [event, setEvent] = useState(null);
+  const [form, setForm] = useState(empty);
+  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [botVerification, setBotVerification] = useState({ isVerified: false, _botToken: '', _formTime: 0, hp_website: '' });
+
+  const universityFlow = needsUniversityDetails(form.educationStatus);
+  const employment = needsEmploymentStatus(form.educationStatus);
+  const gradeRequired = needsGrade(form.educationStatus);
+  const faculties = useMemo(() => Object.keys(universities[form.university] || {}), [form.university]);
+  const departments = useMemo(() => universities[form.university]?.[form.faculty] || [], [form.university, form.faculty]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/application-events/${id}`)
+      .then(async response => {
+        const data = await safeJson(response);
+        if (!response.ok) throw new Error(data.message);
+        return data;
+      })
+      .then(setEvent)
+      .catch(error => setNotice(error.message));
+  }, [id]);
+
   const update = changes => setForm(value => ({ ...value, ...changes }));
-  const submit = async eventSubmit => { eventSubmit.preventDefault(); setLoading(true); setNotice(''); try { const response = await fetch(`${API_URL}/application-events/${id}/applications`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }); const data = await response.json(); if (!response.ok) throw new Error(data.message); setNotice('Başvurunuz alındı. Teşekkür ederiz!'); setForm(empty); } catch (error) { setNotice(error.message); } finally { setLoading(false); } };
+
+  const submit = async eventSubmit => {
+    eventSubmit.preventDefault();
+    if (!botVerification.isVerified) {
+      setNotice('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.');
+      return;
+    }
+
+    setLoading(true);
+    setNotice('');
+    try {
+      let response;
+      try {
+        response = await fetch(`${API_URL}/application-events/${id}/applications`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            _botToken: botVerification._botToken,
+            _formTime: botVerification._formTime,
+            hp_website: botVerification.hp_website
+          })
+        });
+      } catch {
+        throw new Error('Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda). Lütfen daha sonra tekrar deneyiniz.');
+      }
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.message);
+      setNotice('Başvurunuz alındı. Teşekkür ederiz!');
+      setForm(empty);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!event) return <main style={{ padding: 50 }}>{notice || 'Yükleniyor...'}</main>;
   const label = { display: 'grid', gap: 7, fontWeight: 600 };
   const succeeded = notice.startsWith('Başvurunuz');
@@ -29,6 +86,13 @@ export default function EventApplicationFormV2() {
         {universityFlow && <fieldset style={{ display: 'grid', gap: 14, border: '1px solid #dbe3ec', borderRadius: 12, padding: 18 }}><legend>Üniversite bilgileri</legend><label style={label}>Üniversite<select required style={input} value={form.university} onChange={eventChange => update({ university: eventChange.target.value, faculty: '', department: '' })}><option value="">Seçiniz</option>{Object.keys(universities).map(name => <option key={name}>{name}</option>)}</select></label><label style={label}>Fakülte<select required style={input} value={form.faculty} onChange={eventChange => update({ faculty: eventChange.target.value, department: '' })}><option value="">Seçiniz</option>{faculties.map(name => <option key={name}>{name}</option>)}</select></label><label style={label}>Bölüm<select required style={input} value={form.department} onChange={eventChange => update({ department: eventChange.target.value })}><option value="">Seçiniz</option>{departments.map(name => <option key={name}>{name}</option>)}</select></label>{gradeRequired && <label style={label}>Sınıf<select required style={input} value={form.grade} onChange={eventChange => update({ grade: eventChange.target.value })}><option value="">Seçiniz</option>{grades.map(grade => <option key={grade}>{grade}</option>)}</select></label>}</fieldset>}
         {employment && <div><b>Çalışma durumu</b><div style={{ marginTop: 8, display: 'flex', gap: 8 }}><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'EMPLOYED' })}>Aktif çalışıyorum</button><button type="button" className="btn btn-secondary" onClick={() => update({ employmentStatus: 'UNEMPLOYED' })}>Çalışmıyorum</button></div></div>}
         <KvkkConsent checked={form.kvkkAccepted} onChange={eventChange => update({ kvkkAccepted: eventChange.target.checked })} />
+
+        {/* Robot Doğrulama */}
+        <HumanVerify
+          value={botVerification.isVerified}
+          onChange={setBotVerification}
+        />
+
         {notice && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{notice}</p>}<button disabled={loading} type="submit" style={{ border: 0, borderRadius: 10, padding: 15, background: 'var(--accent-primary)', color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}>{loading ? 'Gönderiliyor...' : 'Başvuruyu Gönder'}</button>
       </form>}
     </section>

@@ -15,11 +15,31 @@ export const NotificationProvider = ({ children }) => {
   });
 
   // Toast Ekleme
-  const showNotification = useCallback((message, type = 'info') => {
+  const showNotification = useCallback((rawMessage, type = 'info') => {
+    let message = rawMessage;
+    if (typeof message === 'object' && message?.message) message = message.message;
+    if (typeof message !== 'string') message = String(message || 'Bir işlem hatası oluştu.');
+
+    const lower = message.toLowerCase();
+    if (
+      lower.includes('unexpected token') ||
+      lower.includes('not valid json') ||
+      lower.includes('json.parse') ||
+      lower.includes('failed to fetch') ||
+      lower.includes('network error') ||
+      lower.includes('networkrequestfailed') ||
+      lower.includes('load failed') ||
+      lower.includes('err_connection_refused') ||
+      lower.includes('bad gateway') ||
+      lower.includes('service unavailable')
+    ) {
+      message = 'Sunucuya şu anda ulaşılamıyor (Sunucu kapalı veya bakımda olabilir). Lütfen daha sonra tekrar deneyiniz.';
+    }
+
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    // 3.5 saniye sonra otomatik temizle
+    // 4 saniye sonra otomatik temizle
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 4000);
