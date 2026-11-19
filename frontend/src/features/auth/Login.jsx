@@ -81,6 +81,12 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           showNotification(data.message, 'error');
         }
       } else {
+        if (!botVerification.isVerified) {
+          showNotification('Lütfen güvenlik için "Ben robot değilim" kutucuğunu işaretleyin.', 'warning');
+          setLoading(false);
+          setLoadingScreen(false);
+          return;
+        }
         // Normal Login
         await login(email, password);
         showNotification('Başarıyla giriş yapıldı. Hoş geldiniz!', 'success');
@@ -205,7 +211,7 @@ export default function Login({ onRegisterRedirect, onVerifyRedirect }) {
           </>
         )}
 
-        {forgotMode && !resetMode && (
+        {!resetMode && (
           <HumanVerify
             value={botVerification.isVerified}
             onChange={setBotVerification}

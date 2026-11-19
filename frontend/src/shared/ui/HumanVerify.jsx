@@ -96,7 +96,9 @@ export default function HumanVerify({ onChange, value = false, style = {} }) {
           userSelect: 'none',
           boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
           transition: 'all 0.2s ease',
-          maxWidth: 340
+          width: '100%',
+          maxWidth: 360,
+          boxSizing: 'border-box'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -151,3 +153,4 @@ export default function HumanVerify({ onChange, value = false, style = {} }) {
     </div>
   );
 }
+
